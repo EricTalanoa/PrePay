@@ -1,0 +1,8 @@
+# Editor and OS noise
+.DS_Store
+Thumbs.db
+*.log
+
+# Local env files — never commit these
+.env
+.env.*

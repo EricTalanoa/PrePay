@@ -1,0 +1,14 @@
+[build]
+  # index.html at the repo root is the entire site — nothing to build.
+  publish = "."
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # The lock screen is cosmetic and the seed pay data ships in the page,
+    # so the URL is the only thing keeping this private. Stay out of search
+    # results and out of referrers.
+    X-Robots-Tag = "noindex, nofollow, noarchive"
+    Referrer-Policy = "no-referrer"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "SAMEORIGIN"
