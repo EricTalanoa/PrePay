@@ -12,8 +12,9 @@ Single self-contained `index.html`. No build step, no server, no account.
 ## Screens
 
 - **Work day** — record a day: start/end time on a scroll wheel, lunch taken,
-  credit-card tips, cash tips pocketed, and a long-distance/travel flag with a
-  per-diem amount. Days can be edited or deleted after the fact.
+  credit-card tips, cash tips pocketed, POV miles driven, and a
+  long-distance/travel flag with a per-diem amount. Days can be edited or
+  deleted after the fact.
 - **Pay day** — the estimate for the current period: total hours split into
   regular and overtime, gross, an expandable deduction breakdown, and net.
 - **History** — past pay periods. Real stubs show as `ACTUAL`; periods you have
@@ -37,7 +38,7 @@ estimate off before:
 | Credit-card tips | yes | **no** | taxed federally, outside FLI/Cares/MLI |
 | Spot bonus | yes | yes | |
 | Sick-hour cash-out | yes | yes | straight time, and no Workers Comp — the hours were not worked |
-| Per-diem, tuition, expenses | **no** | **no** | reimbursements, added after tax |
+| Per-diem, tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
 
 Deduction rates, all read off the stubs:
 
@@ -64,6 +65,19 @@ Sick leave accrues at `floor(hours worked) / 40` per period.
   does not come through reliably, hence the on/off switch.
 - **Sick cash-out** — accrued hours at the base rate, no overtime multiplier.
   Enter the hours in Settings and they land on the current period's estimate.
+- **POV mileage** — miles per shift at $0.70, the IRS standard rate, which is
+  what the 09/04 stub paid for 7.25 miles. Reimbursed, so it is never taxed.
+
+### Tips, and checking them
+
+Credit-card tips are pooled and split by crew size. Enter the crew total and the
+head count rather than doing the division: the split truncates to the cent
+(`427.99 / 4` pays 106.99, not 107.00), and keeping the total and the head count
+is what makes a shortfall arguable later.
+
+When a period has both a stub and logged days, History compares them and flags
+any gap in tips or hours. This is not hypothetical — the 09/04 check paid $290.32
+against $415.64 logged, and the missing $125.32 is one shift's whole tip share.
 
 Against the 08/16–08/31 stub this reproduces gross, the bonus and the tuition
 line exactly, and lands $5.08 under on net — a one-off expense reimbursement the
