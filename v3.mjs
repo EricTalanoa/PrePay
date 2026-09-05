@@ -1,0 +1,21 @@
+import { chromium } from '/opt/node22/lib/node_modules/playwright/index.mjs';
+const b = await chromium.launch();
+const pg = await b.newPage({ viewport:{width:420,height:900} });
+const errs=[]; pg.on('pageerror',e=>errs.push(e.message));
+await pg.goto('http://localhost:8765/index.html',{waitUntil:'networkidle'});
+await pg.waitForTimeout(1200);
+for (const d of ['1','2','1','2']) { await pg.getByText(d,{exact:true}).first().click(); await pg.waitForTimeout(90); }
+await pg.waitForTimeout(400);
+const T=async()=>(await pg.locator('body').innerText()).replace(/\n{2,}/g,'\n');
+console.log('--- WORK DAY (tips area) ---');
+const wd=await T(); const k=wd.indexOf('Credit card tips');
+console.log(wd.slice(k-30,k+220));
+await pg.getByText('Pay day',{exact:true}).last().click(); await pg.waitForTimeout(400);
+const pd=await T(); console.log('\n--- PAY DAY ---\n'+pd.slice(0,pd.indexOf('SHOW TAX')));
+await pg.getByText('History',{exact:true}).last().click(); await pg.waitForTimeout(400);
+await pg.getByText('AUG 16 – AUG 31',{exact:false}).first().click(); await pg.waitForTimeout(500);
+const h=await T(); const i=h.indexOf('AUG 16');
+console.log('\n--- SEP 4 PERIOD ---\n'+h.slice(i-40,i+560));
+console.log('\nerrors:', errs.length?errs:'none');
+await pg.screenshot({path:'/tmp/claude-0/-home-user-PrePay/b229fc21-f088-5e81-bb13-f1567ccf136e/scratchpad/final.png',fullPage:true});
+await b.close();

@@ -70,14 +70,18 @@ Sick leave accrues at `floor(hours worked) / 40` per period.
 
 ### Tips, and checking them
 
-Credit-card tips are pooled and split by crew size. Enter the crew total and the
-head count rather than doing the division: the split truncates to the cent
-(`427.99 / 4` pays 106.99, not 107.00), and keeping the total and the head count
-is what makes a shortfall arguable later.
+Credit-card tips are pooled and split by crew size, but you enter your own share
+— work out the division however you like. Note that the split truncates to the
+cent rather than rounding: `427.99 / 4` pays 106.99, not 107.00.
 
 When a period has both a stub and logged days, History compares them and flags
-any gap in tips or hours. This is not hypothetical — the 09/04 check paid $290.32
-against $415.64 logged, and the missing $125.32 is one shift's whole tip share.
+any gap in tips, or any gap in hours past a few minutes. This is not
+hypothetical — the 09/04 check paid $290.32 against $415.64 logged, and the
+missing $125.32 is one shift's whole tip share.
+
+Adding a period from the log prefills tax with the *estimate*, since that figure
+cannot be derived from hours. The row says so until you type the real number off
+the stub.
 
 Against the 08/16–08/31 stub this reproduces gross, the bonus and the tuition
 line exactly, and lands $5.08 under on net — a one-off expense reimbursement the
