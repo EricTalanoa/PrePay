@@ -5,6 +5,8 @@ you work — clock in, clock out, lunch, tips, per-diem — and it estimates wha
 next check should come to. When the real stub arrives you enter it and the
 history keeps both sides side by side.
 
+Live at <https://lustrous-puffpuff-8d6741.netlify.app/>.
+
 Single self-contained `index.html`. No build step, no server, no account.
 
 ## Screens
@@ -79,7 +81,8 @@ overwritten as soon as real data exists in `localStorage`.
 
 ## Deploying
 
-`index.html` at the repository root is the whole site — publish the root
-directory. `netlify.toml` sets that, and asks search engines not to index the
-site, since a live URL is the only thing between the internet and the pay data
-baked into the page.
+Netlify deploys the repository root to
+<https://lustrous-puffpuff-8d6741.netlify.app/>. `index.html` at the root is the
+whole site, so there is nothing to build — `netlify.toml` pins the publish
+directory and asks search engines not to index the site, since a live URL is the
+only thing between the internet and the pay data baked into the page.
