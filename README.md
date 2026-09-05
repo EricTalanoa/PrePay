@@ -11,7 +11,9 @@ Single self-contained `index.html`. No build step, no server, no account.
 
 ## Screens
 
-- **Work day** — record a day: start/end time on a scroll wheel, lunch taken,
+- **Work day** — record a day: start/end time on a scroll wheel, with clock-out
+  set to the current time whenever the screen is opened (it holds still while
+  you edit, and will not run back past your clock-in). Then lunch taken,
   credit-card tips, cash tips pocketed, POV miles driven, and a
   long-distance/travel flag with a per-diem amount. Days can be edited or
   deleted after the fact.
