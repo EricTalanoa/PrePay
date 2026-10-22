@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      ios: ${{ steps.filter.outputs.ios }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            ios:
+              - 'ios/**'
+
+  # The pay math, on Linux: cheap, and the same numbers the web tests check.
+  ios-core:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+        working-directory: ios/PrepayCore
+
+  # Compiles the whole iPhone app against the iOS SDK. macOS minutes are
+  # billed at 10x on private repos, so this only runs when ios/ changes.
+  ios-app:
+    needs: changes
+    if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for the iOS simulator
+        working-directory: ios
+        run: |
+          xcodebuild build -scheme Prepay -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO | tail -40
