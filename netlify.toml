@@ -1,13 +1,15 @@
 [build]
-  # index.html at the repo root is the entire site — nothing to build.
-  publish = "."
+  command = "npm ci && npm test && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
 
 [[headers]]
   for = "/*"
   [headers.values]
-    # The lock screen is cosmetic and the seed pay data ships in the page,
-    # so the URL is the only thing keeping this private. Stay out of search
-    # results and out of referrers.
+    # Pay data now lives behind a login, but there is still no reason for the
+    # site to turn up in search results or leak into referrers.
     X-Robots-Tag = "noindex, nofollow, noarchive"
     Referrer-Policy = "no-referrer"
     X-Content-Type-Options = "nosniff"

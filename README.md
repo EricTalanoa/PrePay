@@ -1,139 +1,178 @@
 # Prepay
 
 A pay-period tracker for an hourly, tipped job in Washington State. Log each day
-you work — clock in, clock out, lunch, tips, per-diem — and it estimates what the
-next check should come to. When the real stub arrives you enter it and the
-history keeps both sides side by side.
+you work (clock in, clock out, lunch, tips, travel) and it estimates what the
+next check should come to. When the real stub arrives you enter it, and History
+keeps both side by side.
 
-Live at <https://lustrous-puffpuff-8d6741.netlify.app/>.
+There are two apps over one database:
 
-Single self-contained `index.html`. No build step, no server, no account.
+- **Web**: a Vite + React site, live at <https://lustrous-puffpuff-8d6741.netlify.app/>.
+- **iPhone**: a SwiftUI app in [`ios/`](ios/), built and installed with
+  [xtool](https://github.com/xtool-org/xtool).
+
+Both sign in with Apple or Google through Supabase and read and write the same
+rows, so a day logged on the phone shows up on the web and the other way round.
 
 ## Screens
 
-- **Work day** — record a day: start/end time on a scroll wheel, with clock-out
-  set to the current time whenever the screen is opened (it holds still while
-  you edit, and will not run back past your clock-in). Then lunch taken,
-  credit-card tips, cash tips pocketed, POV miles driven, and a
-  long-distance/travel flag with a per-diem amount. Days can be edited or
-  deleted after the fact.
-- **Pay day** — the estimate for the current period: total hours split into
-  regular and overtime, gross, an expandable deduction breakdown, and net.
-- **History** — past pay periods. Real stubs show as `ACTUAL`; periods you have
-  logged but not yet reconciled show as `ESTIMATE`. When a check lands, **+ Add
-  the … check** creates the period prefilled from your log so you can type the
-  real figures off the stub.
-- **Settings** — hourly rate and raises, the spot bonus, tuition reimbursement,
-  and sick-hour cash-outs.
+- **Work day**: record a day. Clock-in starts at your default start time;
+  clock-out is set to now whenever the screen opens. Lunch taken defaults to
+  your setting (yes, unless you change it). Then credit-card tips, cash tips,
+  POV miles, and Local / Travel day / Full away.
+- **Pay day**: the estimate for the coming check, with regular and overtime
+  hours, gross, a tax breakdown and net. If tuition was expected on a check
+  that has just paid, it asks whether it came through.
+- **History**: past pay periods, real stubs marked `ACTUAL` and logged-only
+  periods `ESTIMATE`. **+ Add the … check** creates a stub prefilled from your
+  log. Each period shows whether tuition came on that check and lets you
+  correct it. **Stats** (top right) has the fun numbers: highest and lowest
+  earning day, longest and shortest day, most cash and most CC tips in a day,
+  most days in a row, most days off in a row, best week, and more.
+- **Settings**: base rate and raise, start-time and lunch defaults, tuition,
+  mileage rate, sick hours, backup, and sign out.
 
 ## How the estimate is worked out
 
-Wages are `regular hours x rate` plus `overtime hours x rate x 1.5`, overtime
-accruing past 40 hours in a Saturday–Friday week.
+The math lives in [`src/lib/pay.ts`](src/lib/pay.ts), with tests beside it, and
+is ported line for line to
+[`ios/PrepayCore`](ios/PrepayCore/Sources/PrepayCore/Pay.swift). Change one and
+change the other.
 
-What counts toward what is not uniform, and getting it wrong is what threw the
-estimate off before:
+Wages are `regular hours x rate` plus `overtime hours x rate x 1.5`, overtime
+counting past 40 hours in a Saturday–Friday week.
 
 | Amount | In gross? | In the WA premiums? | Notes |
 | --- | --- | --- | --- |
 | Regular and overtime pay | yes | yes | |
 | Credit-card tips | yes | **no** | taxed federally, outside FLI/Cares/MLI |
-| Spot bonus | yes | yes | |
-| Sick-hour cash-out | yes | yes | straight time, and no Workers Comp — the hours were not worked |
-| Per-diem, tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
+| Per-diem | yes | yes | paid as the "spot bonus" on the stub |
+| Sick-hour cash-out | yes | yes | straight time, no Workers Comp |
+| Tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
 
-Deduction rates, all read off the stubs:
+Deduction rates, read off the stubs:
 
 | Line | Rate | Levied on |
 | --- | --- | --- |
 | Federal income tax | 12% over $757 | gross |
 | Social Security | 6.2% | gross |
 | Medicare | 1.45% | gross |
-| Washington FLI | 0.5433% | wages + bonus |
-| Washington Cares | 0.58% | wages + bonus |
-| Washington MLI | 0.2643% | wages + bonus |
+| Washington FLI | 0.5433% | wages + per-diem |
+| Washington Cares | 0.58% | wages + per-diem |
+| Washington MLI | 0.2643% | wages + per-diem |
 | WA Workers Comp | $0.3519 / hour | hours actually worked |
 
-Sick leave accrues at `floor(hours worked) / 40` per period.
+### Per-diem
 
-### The three irregular lines
+A fixed **$51** for a travel day and **$75** for a full day away. It shows up on
+the stub as the spot bonus, on the check for the period the days fall in, and is
+taxed like wages. History flags a stub whose bonus doesn't match the travel days
+you logged.
 
-- **Spot bonus** — $102, and on every stub since June it has landed on the
-  16th-to-end-of-month period only, not on every check. Settings has a toggle
-  for the amount and for which periods it applies to.
-- **Tuition reimbursement** — $1.00 per hour worked, always a period behind, and
-  catching up whatever accounting skipped. A payout on a period settles hours
-  through the *previous* period, so the period it appears on is still owed. It
-  does not come through reliably, hence the on/off switch.
-- **Sick cash-out** — accrued hours at the base rate, no overtime multiplier.
-  Enter the hours in Settings and they land on the current period's estimate.
-- **POV mileage** — miles per shift at $0.70, the IRS standard rate, which is
-  what the 09/04 stub paid for 7.25 miles. Reimbursed, so it is never taxed.
+### Raises
+
+Rates are kept as a dated history. A raise is set to start on this pay period
+or the next. Until then it sits under **Raise**. Once its start date arrives it
+simply is the base rate: Base rate shows the new figure and the Raise field is
+empty again. Periods before the raise keep the old rate.
+
+### Sick hours
+
+Settings keeps a running balance. Type the balance off your latest stub once;
+from then on each check adds `floor(hours worked) / 40` on its pay date (stub
+hours where there is a stub, logged hours otherwise), and a cash-out comes off
+the balance as soon as you schedule it.
+
+### Tuition reimbursement
+
+$1.00 per hour worked by default, a period behind: a payout on a check settles
+the hours through the period before it. HR enters it by hand, so the app
+**expects it every other check**, counting from the last check it landed on.
+When an expected check pays, Pay day asks **did it come through?**
+
+- **Yes**: record the amount. The every-other count restarts from this check.
+- **No**: it moves to the very next check, and the amount keeps growing.
+
+If it lands on a check where it wasn't expected, mark it in History. That
+restarts the count from there too. An expected check you never answer is
+treated as missed.
 
 ### Tips, and checking them
 
-Credit-card tips are pooled and split by crew size, but you enter your own share
-— work out the division however you like. Note that the split truncates to the
-cent rather than rounding: `427.99 / 4` pays 106.99, not 107.00.
+Enter your own share of the pooled credit-card tips. When a period has both a
+stub and logged days, History compares them and flags any gap in tips, hours
+or per-diem. A missing shift's tips on a check show up this way.
 
-When a period has both a stub and logged days, History compares them and flags
-any gap in tips, or any gap in hours past a few minutes. This is not
-hypothetical — the 09/04 check paid $290.32 against $415.64 logged, and the
-missing $125.32 is one shift's whole tip share.
+## Data and privacy
 
-Adding a period from the log prefills tax with the *estimate*, since that figure
-cannot be derived from hours. The row says so until you type the real number off
-the stub.
+Nothing personal ships in the page or the app. Your pay data lives in Supabase
+(project `prepay`) in six tables: `settings`, `rates`, `days`, `stubs`,
+`sick_cashouts` and `tuition_events`. Every table has row-level security, so a
+signed-in user can only see and change their own rows. The schema is in
+[`supabase/migrations`](supabase/migrations/).
 
-Against the 08/16–08/31 stub this reproduces gross, the bonus and the tuition
-line exactly, and lands $5.08 under on net — a one-off expense reimbursement the
-app has no way to anticipate. Treat the number as an estimate and check it
-against the stub.
+The Supabase URL and publishable key in `src/config.ts` and
+`ios/Sources/Prepay/Config.swift` are meant to be public. They name the
+project; row-level security is what protects the data.
 
-The rate lives in Settings. A raise can be set to start on either the current
-pay period or the next one, and applies to whole periods rather than to dates
-inside one.
+**Moving over from the old version:** sign in on the browser you used before,
+open Settings, and use **Move it into my account**. It only appears if that
+browser still has the old data. A text backup from the old **Export** button
+also works through **Import**.
 
-## Running it
-
-Open `index.html` in a browser, or serve the directory:
+## Running the web app
 
 ```
-python3 -m http.server 8000
+npm install
+npm run dev      # http://localhost:5173
+npm test         # pay math tests
+npm run build    # typecheck + production build into dist/
 ```
 
-Then visit http://localhost:8000.
+Netlify runs the tests and the build on every deploy (see `netlify.toml`).
 
-## The passcode
+## Running the iPhone app
 
-The app opens on a four-digit lock screen with its own on-screen keypad, and
-unlocks for the session. This is a privacy screen for a phone left on a table —
-nothing more. The code is a plain constant in the page source, so anyone who can
-load the page can read it. It is not access control: do not rely on it to keep
-pay data from anyone who has the URL.
+Install xtool ([Linux](https://xtool.sh/documentation/xtooldocs/installation-linux),
+[macOS](https://xtool.sh/documentation/xtooldocs/installation-macos)), plug in the
+iPhone, then:
 
-## Where the data lives
+```
+cd ios
+xtool dev
+```
 
-Everything is in your own browser:
+A free Apple ID is enough to install it on your own phone; the install then
+lasts 7 days before it needs running again. A paid developer account lasts a
+year. The pay math has its own tests: `cd ios/PrepayCore && swift test`.
 
-- `localStorage` — `prepay.days.v4` (logged days), `prepay.stubs.v1` (entered
-  stubs) and `prepay.settings.v1` (rate, raise, bonus, tuition, sick)
-- `sessionStorage` — `prepay.ok`, the unlock flag, cleared on reload
+## One-time setup for sign-in
 
-The page makes no network requests; React and the fonts are inlined into the
-file. Nothing is sent anywhere and nothing syncs, which cuts both ways: the log
-does not follow you between devices or browsers, and clearing site data wipes
-it. Use **Export** on the History screen to copy a backup out as text, and
-**Import** to paste it back in elsewhere.
+Sign-in needs the providers switched on in Supabase. Until then the buttons
+return an error.
 
-Until you log a day of your own, the app shows a set of built-in sample days and
-stubs so the screens are not empty. These are hardcoded in `index.html` and are
-overwritten as soon as real data exists in `localStorage`.
+1. **Supabase → Authentication → URL Configuration**
+   - Site URL: `https://lustrous-puffpuff-8d6741.netlify.app`
+   - Redirect URLs: `https://lustrous-puffpuff-8d6741.netlify.app/**`,
+     `http://localhost:5173/**` and `prepay://auth-callback` (the iPhone app)
+2. **Google**: in Google Cloud Console create an OAuth client of type *Web
+   application* with authorized redirect URI
+   `https://akdcwtpfxxhtasqtxqdf.supabase.co/auth/v1/callback`. Paste its client
+   ID and secret into **Supabase → Authentication → Providers → Google**.
+3. **Apple**: needs a paid Apple Developer account. Create a Services ID with
+   return URL `https://akdcwtpfxxhtasqtxqdf.supabase.co/auth/v1/callback`, and a
+   Sign in with Apple key. Supabase wants a JWT signed with that key, not the
+   `.p8` file itself; make one with
 
-## Deploying
+   ```
+   node scripts/apple-client-secret.mjs ~/path/AuthKey_XXXXXXXXXX.p8 <TEAM_ID> <SERVICES_ID>
+   ```
 
-Netlify deploys the repository root to
-<https://lustrous-puffpuff-8d6741.netlify.app/>. `index.html` at the root is the
-whole site, so there is nothing to build — `netlify.toml` pins the publish
-directory and asks search engines not to index the site, since a live URL is the
-only thing between the internet and the pay data baked into the page.
+   and paste the output, with the Services ID under Client IDs, into
+   **Supabase → Authentication → Providers → Apple**. Apple makes the JWT
+   expire after 6 months: run the script again and paste the new one before
+   then, or Apple sign-in stops working. Keep the `.p8` out of the repo.
+
+The iPhone app signs in through the same web flow in a system sheet, so this
+one setup covers both apps. It needs no Sign in with Apple entitlement, which
+xtool can't provision.

@@ -1,0 +1,36 @@
+name: iOS
+
+# Only when the iPhone app changes: macOS minutes are billed at 10x on
+# private repos.
+on:
+  push:
+    branches: [main]
+    paths: ['ios/**', '.github/workflows/ios.yml']
+  pull_request:
+    paths: ['ios/**', '.github/workflows/ios.yml']
+
+jobs:
+  # The pay math, on Linux: cheap, and the same numbers the web tests check.
+  core:
+    runs-on: ubuntu-latest
+    container: swift:6.1
+    steps:
+      - uses: actions/checkout@v4
+      - run: swift test
+        working-directory: ios/PrepayCore
+
+  # Compiles the whole iPhone app against the iOS SDK.
+  app:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build for the iOS simulator
+        working-directory: ios
+        # The full log is thousands of lines: keep it in a file and print only
+        # the diagnostics and the verdict. A failed build fails the job.
+        shell: bash
+        run: |
+          xcodebuild build -scheme Prepay -destination 'generic/platform=iOS Simulator' \
+            -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO > build.log 2>&1 \
+            || { grep -E "error:|warning:.*(Sendable|actor)" build.log | sort -u; tail -15 build.log; exit 1; }
+          grep -E "\*\* BUILD" build.log

@@ -1,0 +1,3 @@
+version: 1
+bundleID: app.prepay.Prepay
+infoPath: Info.plist
