@@ -161,8 +161,17 @@ return an error.
    ID and secret into **Supabase → Authentication → Providers → Google**.
 3. **Apple**: needs a paid Apple Developer account. Create a Services ID with
    return URL `https://akdcwtpfxxhtasqtxqdf.supabase.co/auth/v1/callback`, and a
-   Sign in with Apple key. Enter the Services ID, team ID, key ID and key under
-   **Supabase → Authentication → Providers → Apple**.
+   Sign in with Apple key. Supabase wants a JWT signed with that key, not the
+   `.p8` file itself; make one with
+
+   ```
+   node scripts/apple-client-secret.mjs ~/path/AuthKey_XXXXXXXXXX.p8 <TEAM_ID> <SERVICES_ID>
+   ```
+
+   and paste the output, with the Services ID under Client IDs, into
+   **Supabase → Authentication → Providers → Apple**. Apple makes the JWT
+   expire after 6 months: run the script again and paste the new one before
+   then, or Apple sign-in stops working. Keep the `.p8` out of the repo.
 
 The iPhone app signs in through the same web flow in a system sheet, so this
 one setup covers both apps. It needs no Sign in with Apple entitlement, which
