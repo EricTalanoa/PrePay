@@ -25,5 +25,14 @@ let package = Package(
             ],
             resources: [.process("Resources")]
         ),
+        // Renders the README screenshots; see .github/workflows/screenshots.yml.
+        .testTarget(
+            name: "PrepayScreenshots",
+            dependencies: [
+                "Prepay",
+                .product(name: "PrepayCore", package: "PrepayCore"),
+            ],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )

@@ -1,36 +1,55 @@
-# Prepay
+<p align="center">
+  <img src="ios/Sources/Prepay/Resources/Badge.png" width="112" alt="Prepay icon">
+</p>
+
+<h1 align="center">Prepay</h1>
+
+<p align="center"><em>Know the check before it lands.</em></p>
 
 A pay-period tracker for an hourly, tipped job in Washington State. Log each day
 you work (clock in, clock out, lunch, tips, travel) and it estimates what the
 next check should come to. When the real stub arrives you enter it, and History
-keeps both side by side.
+keeps both side by side and flags anything payroll missed.
+
+| | Work day | Pay day | History | Settings |
+| --- | --- | --- | --- | --- |
+| **Classic** | <img src="docs/screenshots/classic-workday.png" width="180"> | <img src="docs/screenshots/classic-payday.png" width="180"> | <img src="docs/screenshots/classic-history.png" width="180"> | <img src="docs/screenshots/classic-settings.png" width="180"> |
+| **Firehouse** | <img src="docs/screenshots/firehouse-workday.png" width="180"> | <img src="docs/screenshots/firehouse-payday.png" width="180"> | <img src="docs/screenshots/firehouse-history.png" width="180"> | <img src="docs/screenshots/firehouse-settings.png" width="180"> |
+
+<sub>Screenshots use made-up sample data.</sub>
 
 There are two apps over one database:
 
-- **Web**: a Vite + React site, live at <https://lustrous-puffpuff-8d6741.netlify.app/>.
-- **iPhone**: a SwiftUI app in [`ios/`](ios/), built and installed with
-  [xtool](https://github.com/xtool-org/xtool).
+- **iPhone**: a SwiftUI app in [`ios/`](ios/), installed with
+  [xtool](https://github.com/xtool-org/xtool). The screenshots above.
+- **Web**: a Vite + React site in [`src/`](src/), live at
+  <https://lustrous-puffpuff-8d6741.netlify.app/>.
 
 Both sign in with Apple or Google through Supabase and read and write the same
 rows, so a day logged on the phone shows up on the web and the other way round.
 
 ## Screens
 
-- **Work day**: record a day. Clock-in starts at your default start time;
-  clock-out is set to now whenever the screen opens. Lunch taken defaults to
-  your setting (yes, unless you change it). Then credit-card tips, cash tips,
-  POV miles, and Local / Travel day / Full away.
-- **Pay day**: the estimate for the coming check, with regular and overtime
-  hours, gross, a tax breakdown and net. If tuition was expected on a check
-  that has just paid, it asks whether it came through.
+- **Work day**: record a day. Clock-in starts at your default start time and
+  clock-out at now, but the card at the top asks *Working today?* until you
+  change something; only then does it show the hours and pay for the day. Then
+  lunch, credit-card tips, cash tips, POV miles, and Local / Travel / Away.
+- **Pay day**: the estimate for the coming check: regular and overtime pay,
+  tips, per-diem, gross, a tax breakdown and net, how far through the period you
+  are, and the days logged so far. If tuition was expected on a check that has
+  just paid, it asks whether it came through.
 - **History**: past pay periods, real stubs marked `ACTUAL` and logged-only
-  periods `ESTIMATE`. **+ Add the … check** creates a stub prefilled from your
-  log. Each period shows whether tuition came on that check and lets you
-  correct it. **Stats** (top right) has the fun numbers: highest and lowest
-  earning day, longest and shortest day, most cash and most CC tips in a day,
-  most days in a row, most days off in a row, best week, and more.
+  periods `ESTIMATE`. **Add the … check** creates a stub prefilled from your
+  log to correct off the real one. **Stats** (top right) has the fun numbers:
+  best and worst days, longest streaks, best week, busiest weekday and more.
 - **Settings**: base rate and raise, start-time and lunch defaults, tuition,
-  mileage rate, sick hours, backup, and sign out.
+  mileage rate, sick hours, the theme (iPhone), backup (web), and sign out.
+
+### Themes (iPhone)
+
+Settings → Theme switches between **Classic** (warm paper, ink and brick red,
+like the site) and **Firehouse** (black and gold, after the app icon). The
+choice is saved on the phone.
 
 ## How the estimate is worked out
 
@@ -120,6 +139,25 @@ open Settings, and use **Move it into my account**. It only appears if that
 browser still has the old data. A text backup from the old **Export** button
 also works through **Import**.
 
+## Running the iPhone app
+
+Install xtool ([Linux](https://xtool.sh/documentation/xtooldocs/installation-linux),
+[macOS](https://xtool.sh/documentation/xtooldocs/installation-macos)) and run
+`xtool setup` once to sign in with your Apple ID. Then plug in the iPhone, tap
+**Trust** on it, and:
+
+```
+cd ios
+xtool dev
+```
+
+The first time, turn on **Settings → Privacy & Security → Developer Mode** on
+the phone, and with a free Apple ID trust yourself under **Settings → General →
+VPN & Device Management**. A free Apple ID's install lasts 7 days before it
+needs running again; a paid developer account lasts a year.
+
+The pay math has its own tests: `cd ios/PrepayCore && swift test`.
+
 ## Running the web app
 
 ```
@@ -131,20 +169,24 @@ npm run build    # typecheck + production build into dist/
 
 Netlify runs the tests and the build on every deploy (see `netlify.toml`).
 
-## Running the iPhone app
+## Updating the screenshots
 
-Install xtool ([Linux](https://xtool.sh/documentation/xtooldocs/installation-linux),
-[macOS](https://xtool.sh/documentation/xtooldocs/installation-macos)), plug in the
-iPhone, then:
+Run the **Screenshots** workflow from the Actions tab. It renders the iPhone
+screens in the simulator from the sample data in
+[`ios/Tests/PrepayScreenshots`](ios/Tests/PrepayScreenshots/Screenshots.swift)
+and commits them to `docs/screenshots/` on the branch it ran on.
 
-```
-cd ios
-xtool dev
-```
+## Project layout
 
-A free Apple ID is enough to install it on your own phone; the install then
-lasts 7 days before it needs running again. A paid developer account lasts a
-year. The pay math has its own tests: `cd ios/PrepayCore && swift test`.
+| Path | What's there |
+| --- | --- |
+| `ios/Sources/Prepay` | the iPhone app's screens, theme and Supabase sync |
+| `ios/PrepayCore` | the pay math, a line-for-line port of `src/lib`, with tests |
+| `ios/Tests/PrepayScreenshots` | renders the README screenshots |
+| `src/` | the web app; `src/lib/pay.ts` is the pay math |
+| `supabase/migrations` | the database schema and row-level security |
+| `scripts/apple-client-secret.mjs` | makes the Sign in with Apple secret (below) |
+| `.github/workflows` | CI for the web app and the iPhone app, and the screenshots |
 
 ## One-time setup for sign-in
 
