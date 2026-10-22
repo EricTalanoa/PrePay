@@ -74,11 +74,28 @@ struct MainTabs: View {
     }
 }
 
-/// The app's P, drawn: a serif letter on the hero tile.
+/// The app icon's firehouse badge, as on the home screen. Falls back to the
+/// drawn P if the image is missing from the bundle.
 struct BrandMark: View {
     var size: CGFloat = 64
 
     var body: some View {
+        // UIImage(named:) caches, so looking it up on each render is cheap.
+        if let badge = UIImage(named: "Badge", in: .module, with: nil) {
+            Image(uiImage: badge)
+                .resizable()
+                .interpolation(.high)
+                .frame(width: size, height: size)
+                .clipShape(RoundedRectangle(cornerRadius: size * 0.225, style: .continuous))
+                .shadow(color: Theme.current.shadow, radius: 14, y: 6)
+                .shadow(color: Color(red: 1.00, green: 0.55, blue: 0.15).opacity(0.35), radius: 18)
+                .accessibilityHidden(true)
+        } else {
+            letter
+        }
+    }
+
+    private var letter: some View {
         Text("P")
             .font(Theme.serif(size * 0.62, weight: .semibold))
             .foregroundStyle(Theme.onHero)

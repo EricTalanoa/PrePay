@@ -22,7 +22,8 @@ let package = Package(
             dependencies: [
                 .product(name: "PrepayCore", package: "PrepayCore"),
                 .product(name: "Supabase", package: "supabase-swift"),
-            ]
+            ],
+            resources: [.process("Resources")]
         ),
     ]
 )
