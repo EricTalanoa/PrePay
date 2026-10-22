@@ -6,3 +6,12 @@ Thumbs.db
 # Local env files — never commit these
 .env
 .env.*
+
+# Build output and dependencies
+node_modules/
+dist/
+
+# iOS / xtool build output
+ios/.build/
+ios/xtool/
+ios/.swiftpm/
