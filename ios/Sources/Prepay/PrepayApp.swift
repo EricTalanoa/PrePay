@@ -12,6 +12,10 @@ struct PrepayApp: App {
                 .task { await model.start() }
                 .onOpenURL { model.client.auth.handle($0) }
                 .tint(Theme.accent)
+                // The palette is light-only, like the site. Left to follow the
+                // phone, Dark Mode turned system text white on the cream paper
+                // and the forms and tab bar near-black.
+                .preferredColorScheme(.light)
         }
     }
 }
