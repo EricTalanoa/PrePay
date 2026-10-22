@@ -4,6 +4,9 @@ import SwiftUI
 struct WorkDayView: View {
     @Environment(AppModel.self) private var model
     @State private var saved = 0
+    /// The draft as it was when the screen offered it. Until the user changes
+    /// something, the defaults are only a guess, so no estimate is shown.
+    @State private var fresh: Day?
 
     var body: some View {
         @Bindable var model = model
@@ -12,19 +15,13 @@ struct WorkDayView: View {
         let hours = dayHours(d)
         let mileRate = model.data.settings.mileRate
         let subtotal = hours * rate + d.ccTips + perDiem(d.travel) + d.miles * mileRate
+        let touched = model.editing || (fresh != nil && d != fresh)
 
         NavigationStack {
             Form {
                 Section {
                     VStack(alignment: .leading, spacing: 6) {
-                        Caps(rate > 0 ? "\(String(format: "%g", (hours * 100).rounded() / 100)) h worked" : "Set your rate in Settings",
-                             color: rate > 0 ? Theme.paper.opacity(0.65) : Theme.accentLight)
-                        Text(money(subtotal))
-                            .font(Theme.serif(44, weight: .semibold))
-                            .contentTransition(.numericText())
-                            .animation(.snappy, value: subtotal)
-                            .lineLimit(1).minimumScaleFactor(0.6)
-                        Text("before tax · \(fmtFull(d.date))").font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
+                        if touched { estimate(rate: rate, hours: hours, subtotal: subtotal, date: d.date) } else { prompt(date: d.date) }
                     }
                     .foregroundStyle(Theme.paper)
                     .card(padding: 20, fill: Theme.ink, stroke: .clear)
@@ -125,8 +122,36 @@ struct WorkDayView: View {
         }
         .onChange(of: model.tab) { _, tab in
             // clock-out tracks "now" whenever a new day is opened, never mid-edit
-            if tab == .day && !model.editing { model.draft.endMin = AppModel.endNow(model.draft.startMin) }
+            if tab == .day && !model.editing {
+                let wasFresh = model.draft == fresh
+                model.draft.endMin = AppModel.endNow(model.draft.startMin)
+                if wasFresh { fresh = model.draft }
+            }
         }
+        // a new draft (after recording, deleting, cancelling, or picking a day to edit)
+        .onChange(of: model.draft.id, initial: true) { fresh = model.draft }
+    }
+
+    @ViewBuilder
+    private func estimate(rate: Double, hours: Double, subtotal: Double, date: ISODate) -> some View {
+        Caps(rate > 0 ? "\(String(format: "%g", (hours * 100).rounded() / 100)) h worked" : "Set your rate in Settings",
+             color: rate > 0 ? Theme.paper.opacity(0.65) : Theme.accentLight)
+        Text(money(subtotal))
+            .font(Theme.serif(44, weight: .semibold))
+            .contentTransition(.numericText())
+            .animation(.snappy, value: subtotal)
+            .lineLimit(1).minimumScaleFactor(0.6)
+        Text("before tax · \(fmtFull(date))").font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
+    }
+
+    @ViewBuilder
+    private func prompt(date: ISODate) -> some View {
+        Caps(fmtFull(date), color: Theme.paper.opacity(0.65))
+        Text("Working today?")
+            .font(Theme.serif(34, weight: .semibold))
+            .lineLimit(1).minimumScaleFactor(0.6)
+        Text("Set your clock in and out, or add tips, to see the estimate.")
+            .font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
     }
 }
 
