@@ -23,8 +23,7 @@ struct WorkDayView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         if touched { estimate(rate: rate, hours: hours, subtotal: subtotal, date: d.date) } else { prompt(date: d.date) }
                     }
-                    .foregroundStyle(Theme.paper)
-                    .card(padding: 20, fill: Theme.ink, stroke: .clear)
+                    .heroCard()
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
@@ -101,7 +100,7 @@ struct WorkDayView: View {
                             Label(model.editing ? "Update day" : "Record day",
                                   systemImage: model.editing ? "checkmark.circle.fill" : "plus.circle.fill")
                         }
-                        .buttonStyle(PrimaryButtonStyle(color: model.editing ? Theme.ink : Theme.accent))
+                        .buttonStyle(PrimaryButtonStyle(color: model.editing ? Theme.button : Theme.accent))
                         if model.editing {
                             HStack(spacing: 10) {
                                 Button("Cancel edit") { model.resetDraft() }
@@ -135,23 +134,23 @@ struct WorkDayView: View {
     @ViewBuilder
     private func estimate(rate: Double, hours: Double, subtotal: Double, date: ISODate) -> some View {
         Caps(rate > 0 ? "\(String(format: "%g", (hours * 100).rounded() / 100)) h worked" : "Set your rate in Settings",
-             color: rate > 0 ? Theme.paper.opacity(0.65) : Theme.accentLight)
+             color: rate > 0 ? Theme.onHero.opacity(0.65) : Theme.heroAccent)
         Text(money(subtotal))
             .font(Theme.serif(44, weight: .semibold))
             .contentTransition(.numericText())
             .animation(.snappy, value: subtotal)
             .lineLimit(1).minimumScaleFactor(0.6)
-        Text("before tax · \(fmtFull(date))").font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
+        Text("before tax · \(fmtFull(date))").font(.footnote).foregroundStyle(Theme.onHero.opacity(0.65))
     }
 
     @ViewBuilder
     private func prompt(date: ISODate) -> some View {
-        Caps(fmtFull(date), color: Theme.paper.opacity(0.65))
+        Caps(fmtFull(date), color: Theme.onHero.opacity(0.65))
         Text("Working today?")
             .font(Theme.serif(34, weight: .semibold))
             .lineLimit(1).minimumScaleFactor(0.6)
         Text("Set your clock in and out, or add tips, to see the estimate.")
-            .font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
+            .font(.footnote).foregroundStyle(Theme.onHero.opacity(0.65))
     }
 }
 

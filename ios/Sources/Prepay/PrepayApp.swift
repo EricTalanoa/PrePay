@@ -4,20 +4,23 @@ import UIKit
 @main
 struct PrepayApp: App {
     @State private var model = AppModel()
-
-    init() { Theme.applyAppearance() }
+    @AppStorage(ThemeChoice.key) private var theme = ThemeChoice.classic.rawValue
 
     var body: some Scene {
+        // Before anything below reads a color. The UIKit bars only pick up a
+        // new appearance when they are created, hence the .id rebuild.
+        let _ = Theme.use(theme)
         WindowGroup {
             RootView()
                 .environment(model)
                 .task { await model.start() }
                 .onOpenURL { model.client.auth.handle($0) }
                 .tint(Theme.accent)
-                // The palette is light-only, like the site. Left to follow the
-                // phone, Dark Mode turned system text white on the cream paper
-                // and the forms and tab bar near-black.
-                .preferredColorScheme(.light)
+                // Each theme fixes its own scheme rather than following the
+                // phone: Dark Mode on the cream theme turned system text white
+                // on the paper, and Light Mode would do the reverse on Firehouse.
+                .preferredColorScheme(Theme.current.scheme)
+                .id(theme)
         }
     }
 }
@@ -71,20 +74,22 @@ struct MainTabs: View {
     }
 }
 
-/// The app icon's P, drawn: a serif letter on an ink tile.
+/// The app's P, drawn: a serif letter on the hero tile.
 struct BrandMark: View {
     var size: CGFloat = 64
 
     var body: some View {
         Text("P")
             .font(Theme.serif(size * 0.62, weight: .semibold))
-            .foregroundStyle(Theme.paper)
+            .foregroundStyle(Theme.onHero)
             .frame(width: size, height: size)
-            .background(Theme.ink, in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            .background(Theme.hero, in: RoundedRectangle(cornerRadius: size * 0.24, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: size * 0.24, style: .continuous).strokeBorder(Theme.current.heroStroke, lineWidth: 1.5))
             .overlay(alignment: .bottomTrailing) {
                 Circle().fill(Theme.accent).frame(width: size * 0.16, height: size * 0.16).padding(size * 0.16)
             }
-            .shadow(color: Theme.ink.opacity(0.18), radius: 14, y: 6)
+            .shadow(color: Theme.current.shadow, radius: 14, y: 6)
+            .shadow(color: Theme.current.glow, radius: 16)
             .accessibilityHidden(true)
     }
 }
