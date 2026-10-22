@@ -1,3 +1,4 @@
 version: 1
 bundleID: app.prepay.Prepay
+iconPath: AppIcon.png
 infoPath: Info.plist
