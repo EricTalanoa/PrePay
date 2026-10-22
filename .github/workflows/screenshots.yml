@@ -1,0 +1,44 @@
+name: Screenshots
+
+# Renders the iPhone screens with sample data and commits them to
+# docs/screenshots for the README. Run it by hand after a visual change;
+# it also runs when this workflow or the screenshot test changes.
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['.github/workflows/screenshots.yml', 'ios/Tests/**']
+
+permissions:
+  contents: write
+
+jobs:
+  capture:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Render the screens in the simulator
+        working-directory: ios
+        shell: bash
+        run: |
+          sim=$(xcrun simctl list devices available | grep -oE 'iPhone 1[5-9]( Pro)? \(' | head -1 | sed 's/ ($//')
+          # SwiftPM's all-targets scheme carries the test target; fall back to the product's
+          scheme=$(xcodebuild -list 2>/dev/null | grep -q 'Prepay-Package' && echo Prepay-Package || echo Prepay)
+          echo "Simulator: $sim, scheme: $scheme"
+          TEST_RUNNER_SCREENSHOT_DIR="$GITHUB_WORKSPACE/docs/screenshots" \
+            xcodebuild test -scheme "$scheme" -destination "platform=iOS Simulator,name=$sim" \
+              -only-testing:PrepayScreenshots -skipPackagePluginValidation CODE_SIGNING_ALLOWED=NO > test.log 2>&1 \
+            || { grep -E "error:|failed|Skipped" test.log | sort -u | head -40; tail -30 test.log; exit 1; }
+          grep -E "Test Suite .* (passed|failed)|skipped" test.log | tail -5
+          ls -la "$GITHUB_WORKSPACE/docs/screenshots"
+
+      - name: Commit the screenshots
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898283+github-actions[bot]@users.noreply.github.com"
+          git add docs/screenshots
+          git diff --cached --quiet && { echo "No changes"; exit 0; }
+          git commit -m "Update app screenshots"
+          git push
