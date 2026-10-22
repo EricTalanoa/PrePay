@@ -85,6 +85,7 @@ function StubBody({ s, data, actions, onEdit }: { s: Stub; data: Data; actions: 
       {field('otHours', 'Overtime hours', `@ $${(rate * OT_MULT).toFixed(2)}`)}
       {field('ccTips', 'CC tips', 'taxed as wages', '$')}
       {field('bonus', 'Per-diem', 'printed as spot bonus · taxed', '$')}
+      {field('sickHours', 'Sick hours paid', `cashed out @ $${rate.toFixed(2)}`)}
       {field('reimbursement', 'Reimbursement', 'tuition + mileage · after tax', '$')}
       {field('tax', 'Taxes & deductions', 'as printed on the stub', '$')}
       {field('cashTips', 'Cash tips', 'off the check', '$')}
@@ -93,6 +94,7 @@ function StubBody({ s, data, actions, onEdit }: { s: Stub; data: Data; actions: 
         {s.otHours > 0 && <PanelLine name={`Overtime ${s.otHours.toFixed(2)}h`} amt={money(P.otPay)} />}
         {s.ccTips > 0 && <PanelLine name="CC tips" amt={money(s.ccTips)} />}
         {s.bonus > 0 && <PanelLine name="Per-diem" amt={money(s.bonus)} />}
+        {s.sickHours > 0 && <PanelLine name={`Sick pay ${s.sickHours.toFixed(2)}h`} amt={money(P.sickPay)} />}
         <PanelLine tone="strong" name="Gross" amt={money(P.gross)} extra={s.cashTips > 0 ? `+ ${money(s.cashTips)} cash` : undefined} />
         <PanelLine tone="dim" name="Taxes & deductions" amt={'−' + money(s.tax)} />
         {s.reimbursement > 0 && <PanelLine name="Reimbursement (untaxed)" amt={money(s.reimbursement)} />}
@@ -165,7 +167,7 @@ export function History({ data, pay, actions, onEdit }: { data: Data; pay: Perio
     const T = E.totals;
     actions.saveStub({
       periodStart: prev.key, periodEnd: prev.to, payDate: prev.payDate,
-      regHours: +T.reg.toFixed(2), otHours: +T.ot.toFixed(2), ccTips: +T.tips.toFixed(2), bonus: T.perDiem,
+      regHours: +T.reg.toFixed(2), otHours: +T.ot.toFixed(2), ccTips: +T.tips.toFixed(2), bonus: T.perDiem, sickHours: T.sick,
       reimbursement: +(T.tuition + T.milePay).toFixed(2), tax: +T.tax.toFixed(2), taxIsEstimate: true, cashTips: +T.cash.toFixed(2),
     });
     setOpen(prev.key);

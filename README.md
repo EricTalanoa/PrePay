@@ -47,14 +47,14 @@ counting past 40 hours in a Saturday–Friday week.
 | Regular and overtime pay | yes | yes | |
 | Credit-card tips | yes | **no** | taxed federally, outside FLI/Cares/MLI |
 | Per-diem | yes | yes | paid as the "spot bonus" on the stub |
-| Sick-hour cash-out | yes | yes | straight time, no Workers Comp |
+| Sick-hour cash-out | yes | yes | straight time, no Workers Comp; entered on a stub as sick hours paid |
 | Tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
 
 Deduction rates, read off the stubs:
 
 | Line | Rate | Levied on |
 | --- | --- | --- |
-| Federal income tax | 12% over $757 | gross |
+| Federal income tax | 2026 IRS semi-monthly brackets: 10% over $670.83, 12% over $1,187.50, 22% over $2,770.83, 24% over $5,075 | gross |
 | Social Security | 6.2% | gross |
 | Medicare | 1.45% | gross |
 | Washington FLI | 0.5433% | wages + per-diem |

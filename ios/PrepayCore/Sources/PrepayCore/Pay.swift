@@ -14,11 +14,30 @@ public func perDiem(_ t: Travel) -> Double {
 // Rates read off the ADP stubs. FLI/Cares/MLI are levied on wages + bonus and
 // skip tips; Workers Comp is per hour actually worked.
 enum TAX {
-    static let fed = 0.12, fedAllow = 757.0, ss = 0.062, med = 0.0145
+    static let ss = 0.062, med = 0.0145
     static let fli = 0.005433, cares = 0.0058, mli = 0.002643, wc = 0.3519
 }
 
-public func cents(_ x: Double) -> Double { (x * 100).rounded() / 100 }
+/// Federal withholding: the 2026 IRS percentage method for a semi-monthly
+/// payroll, single, standard W-4 (Pub. 15-T). Each row is where a rate starts:
+/// the annual bracket plus the $16,100 standard deduction, over 24 checks.
+let FED_BRACKETS: [(from: Double, rate: Double)] = [
+    (670.83, 0.10), (1187.50, 0.12), (2770.83, 0.22), (5075.00, 0.24),
+    (9078.13, 0.32), (11346.88, 0.35), (27362.50, 0.37),
+]
+
+public func federalTax(_ wages: Double) -> Double {
+    var t = 0.0
+    for (i, b) in FED_BRACKETS.enumerated() {
+        let to = i + 1 < FED_BRACKETS.count ? FED_BRACKETS[i + 1].from : .infinity
+        if wages > b.from { t += (min(wages, to) - b.from) * b.rate }
+    }
+    return t
+}
+
+/// Rounds half up to the cent the way payroll does. Snapping to 6 decimals
+/// first stops float noise (214.245 stored as 214.24499…) rounding down.
+public func cents(_ x: Double) -> Double { ((x * 100 * 1e6).rounded() / 1e6).rounded() / 100 }
 
 public func money(_ n: Double) -> String {
     let f = NumberFormatter()
@@ -121,7 +140,7 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
     t.waBase = t.regPay + t.otPay + t.sickPay + t.perDiem
     t.gross = t.waBase + t.tips
     t.taxLines = [
-        ("Federal income tax", max(0, TAX.fed * (t.gross - TAX.fedAllow))),
+        ("Federal income tax", federalTax(t.gross)),
         ("Social Security", TAX.ss * t.gross),
         ("Medicare", TAX.med * t.gross),
         ("Washington FLI", TAX.fli * t.waBase),
@@ -134,13 +153,16 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
     return t
 }
 
-public struct StubTotals: Sendable { public var regPay, otPay, gross, hours, net: Double }
+public struct StubTotals: Sendable { public var regPay, otPay, sickPay, gross, hours, net: Double }
 
 public func stubTotals(_ s: Stub, rate: Double) -> StubTotals {
-    // payroll rounds each earnings line to cents before summing
-    let regPay = cents(s.regHours * rate), otPay = cents(s.otHours * rate * OT_MULT)
-    let gross = cents(regPay + otPay + s.ccTips + s.bonus)
-    return StubTotals(regPay: regPay, otPay: otPay, gross: gross, hours: s.regHours + s.otHours,
+    // Payroll rounds each earnings line to cents before summing, and prints
+    // overtime as two lines: OT straight (1x) and OT premium (0.5x).
+    let regPay = cents(s.regHours * rate)
+    let otPay = cents(s.otHours * rate) + cents(s.otHours * rate * (OT_MULT - 1))
+    let sickPay = cents(s.sickHours * rate)
+    let gross = cents(regPay + otPay + sickPay + s.ccTips + s.bonus)
+    return StubTotals(regPay: regPay, otPay: otPay, sickPay: sickPay, gross: gross, hours: s.regHours + s.otHours,
                       net: cents(gross - s.tax + s.reimbursement))
 }
 
