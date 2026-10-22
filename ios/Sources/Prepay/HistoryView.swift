@@ -32,42 +32,45 @@ struct HistoryView: View {
             List {
                 if !havePrev {
                     Section {
-                        Button("+ Add the \(fmtMD(prev.payDate)) check") { addStub(prev) }
+                        Button { addStub(prev) } label: {
+                            Label("Add the \(fmtMD(prev.payDate)) check", systemImage: "plus.circle.fill").fontWeight(.semibold)
+                        }
                     } footer: {
                         Text("Prefilled from your log — type the real figures off the stub.")
                     }
                 }
                 if entries.isEmpty {
-                    Text("Nothing here yet. Past periods appear once a pay day passes.").foregroundStyle(Theme.muted)
+                    ContentUnavailableView("No past checks yet", systemImage: "tray",
+                                           description: Text("Past periods appear once a pay day passes."))
+                        .listRowBackground(Color.clear)
                 }
                 ForEach(entries) { e in
                     NavigationLink(value: e.period.key) {
                         let net = e.stub.map { stubTotals($0, rate: rateFor(data.rates, $0.periodStart)).net }
                             ?? estimate(data, e.period, today, calc).totals.net
-                        HStack(alignment: .firstTextBaseline) {
-                            VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 12) {
+                            IconBadge(systemImage: e.stub == nil ? "doc.text.magnifyingglass" : "checkmark.seal.fill",
+                                      color: e.stub == nil ? Theme.muted : Theme.accent, size: 36)
+                            VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
                                     Text("Paid \(fmtMD(e.period.payDate))").fontWeight(.semibold)
-                                    Text(e.stub == nil ? "ESTIMATE" : "ACTUAL").font(Theme.mono(9)).tracking(1.2)
-                                        .padding(.horizontal, 5).padding(.vertical, 2)
-                                        .overlay(Rectangle().stroke(e.stub == nil ? Theme.muted : Theme.accent))
-                                        .foregroundStyle(e.stub == nil ? Theme.muted : Theme.accent)
+                                    Pill(text: e.stub == nil ? "Estimate" : "Actual", color: e.stub == nil ? Theme.muted : Theme.accent)
                                 }
                                 Caps(fmtRange(e.period))
                             }
                             Spacer()
-                            Text(money(net)).font(Theme.serif(22))
+                            Text(money(net)).font(Theme.serif(21, weight: .semibold))
                         }
+                        .padding(.vertical, 4)
                     }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.paper)
-            .navigationTitle("Past pay periods")
+            .paperBackground()
+            .navigationTitle("History")
             .navigationDestination(for: ISODate.self) { key in PeriodDetailView(period: periodOf(key)) }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink { StatsView() } label: { Label("Stats", systemImage: "chart.bar.xaxis") }
+                    NavigationLink { StatsView() } label: { Label("Stats", systemImage: "chart.bar.xaxis").labelStyle(.titleAndIcon) }
                 }
             }
         }
@@ -109,12 +112,21 @@ struct PeriodDetailView: View {
                 }
                 Section {
                     LineRow(name: "Gross", amount: money(p.gross), bold: true)
-                    LineRow(name: "Net pay", amount: money(p.net), bold: true)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Net pay").fontWeight(.semibold)
+                        Spacer()
+                        Text(money(p.net)).font(Theme.serif(26, weight: .semibold))
+                    }
+                    .padding(.vertical, 4)
                 }
                 let checks = mismatches(s, e.totals, hasDays: !e.list.isEmpty)
                 if !checks.isEmpty {
                     Section {
-                        ForEach(checks, id: \.self) { Text($0).font(Theme.mono(12)) }
+                        ForEach(checks, id: \.self) { c in
+                            Label { Text(c).font(Theme.mono(12)) } icon: {
+                                Image(systemName: "exclamationmark.triangle.fill").foregroundStyle(Theme.accent)
+                            }
+                        }
                     } header: { Text("Your log disagrees with this stub").foregroundStyle(Theme.accent) }
                 }
             } else {
@@ -128,7 +140,12 @@ struct PeriodDetailView: View {
                     LineRow(name: "Est. taxes", amount: "−" + money(t.tax), dim: true)
                     if t.tuition > 0 { LineRow(name: "Tuition reimb.", amount: money(t.tuition)) }
                     if t.milePay > 0 { LineRow(name: "POV mileage", amount: money(t.milePay)) }
-                    LineRow(name: "Net", amount: money(t.net), bold: true)
+                    HStack(alignment: .firstTextBaseline) {
+                        Text("Net").fontWeight(.semibold)
+                        Spacer()
+                        Text(money(t.net)).font(Theme.serif(26, weight: .semibold))
+                    }
+                    .padding(.vertical, 4)
                 }
             }
 
@@ -148,9 +165,9 @@ struct PeriodDetailView: View {
                 }
             }
         }
-        .scrollContentBackground(.hidden)
-        .background(Theme.paper)
+        .paperBackground()
         .navigationTitle("Paid \(fmtMD(period.payDate))")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     // What the log says against what payroll paid: this is what turns up a
@@ -170,6 +187,7 @@ struct PeriodDetailView: View {
 struct StubField: View {
     let title: String
     let note: String
+    var icon: String? = nil
     let value: Double
     let onCommit: (Double) -> Void
     @State private var text = ""
@@ -178,10 +196,11 @@ struct StubField: View {
     // Commits when focus leaves, so a database write happens once per edit.
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 1) {
+            let label = VStack(alignment: .leading, spacing: 1) {
                 Text(title)
                 Text(note).font(.caption).foregroundStyle(Theme.muted)
             }
+            if let icon { Label { label } icon: { Image(systemName: icon) } } else { label }
             Spacer()
             TextField("0", text: $text)
                 .keyboardType(.decimalPad).multilineTextAlignment(.trailing).font(Theme.mono(17)).frame(width: 110)

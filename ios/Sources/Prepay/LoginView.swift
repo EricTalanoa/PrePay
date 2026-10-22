@@ -4,31 +4,56 @@ struct LoginView: View {
     @Environment(AppModel.self) private var model
 
     var body: some View {
-        VStack(spacing: 26) {
+        VStack(spacing: 0) {
             Spacer()
-            Text("Prepay").font(Theme.serif(48))
-            Rectangle().fill(Theme.ink).frame(width: 44, height: 1)
-            Text("Know the check before it lands.").foregroundStyle(Theme.muted)
-            VStack(spacing: 10) {
+            BrandMark(size: 84)
+            Text("Prepay").font(Theme.serif(48, weight: .semibold)).padding(.top, 24)
+            Text("Know the check before it lands.")
+                .font(Theme.serif(18)).italic()
+                .foregroundStyle(Theme.muted)
+                .padding(.top, 6)
+
+            VStack(alignment: .leading, spacing: 14) {
+                feature("clock.fill", "Log each shift in seconds")
+                feature("dollarsign.circle.fill", "See your next check before payday")
+                feature("checkmark.seal.fill", "Catch tips that never made the stub")
+            }
+            .padding(.top, 36)
+
+            Spacer()
+
+            VStack(spacing: 12) {
                 Button { Task { await model.signIn(.apple) } } label: {
-                    Label("Continue with Apple", systemImage: "apple.logo").frame(maxWidth: .infinity)
+                    Label("Continue with Apple", systemImage: "apple.logo")
                 }
-                .buttonStyle(.borderedProminent).tint(Theme.ink)
+                .buttonStyle(PrimaryButtonStyle())
                 Button { Task { await model.signIn(.google) } } label: {
-                    Label("Continue with Google", systemImage: "g.circle").frame(maxWidth: .infinity)
+                    Label("Continue with Google", systemImage: "g.circle.fill")
+                        .font(.body.weight(.semibold))
+                        .frame(maxWidth: .infinity, minHeight: 50)
+                        .background(Theme.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(Theme.ink.opacity(0.18)))
                 }
-                .buttonStyle(.bordered).tint(Theme.ink)
+                .buttonStyle(.plain)
+                if let error = model.error {
+                    Label(error, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
+                        .padding(.top, 4)
+                }
             }
-            .controlSize(.large)
-            .frame(maxWidth: 300)
-            if let error = model.error {
-                Text(error).font(Theme.mono(11)).foregroundStyle(Theme.accent).multilineTextAlignment(.center)
-            }
-            Spacer()
+            .frame(maxWidth: 360)
+            .padding(.bottom, 24)
         }
-        .padding(.horizontal, 40)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity)
         .background(Theme.paper)
         .foregroundStyle(Theme.ink)
+    }
+
+    private func feature(_ icon: String, _ text: String) -> some View {
+        HStack(spacing: 14) {
+            IconBadge(systemImage: icon, size: 34)
+            Text(text).font(.callout)
+        }
     }
 }

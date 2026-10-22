@@ -3,6 +3,7 @@ import SwiftUI
 
 struct WorkDayView: View {
     @Environment(AppModel.self) private var model
+    @State private var saved = 0
 
     var body: some View {
         @Bindable var model = model
@@ -15,10 +16,27 @@ struct WorkDayView: View {
         NavigationStack {
             Form {
                 Section {
-                    DatePicker("Date", selection: Binding(
+                    VStack(alignment: .leading, spacing: 6) {
+                        Caps(rate > 0 ? "\(String(format: "%g", (hours * 100).rounded() / 100)) h worked" : "Set your rate in Settings",
+                             color: rate > 0 ? Theme.paper.opacity(0.65) : Theme.accentLight)
+                        Text(money(subtotal))
+                            .font(Theme.serif(44, weight: .semibold))
+                            .contentTransition(.numericText())
+                            .animation(.snappy, value: subtotal)
+                            .lineLimit(1).minimumScaleFactor(0.6)
+                        Text("before tax · \(fmtFull(d.date))").font(.footnote).foregroundStyle(Theme.paper.opacity(0.65))
+                    }
+                    .foregroundStyle(Theme.paper)
+                    .card(padding: 20, fill: Theme.ink, stroke: .clear)
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+
+                Section {
+                    DatePicker(selection: Binding(
                         get: { dparse(model.draft.date) },
                         set: { model.draft.date = iso($0) }
-                    ), displayedComponents: .date)
+                    ), displayedComponents: .date) { Label("Date", systemImage: "calendar") }
                     Picker("Entry", selection: $model.draft.mode) {
                         Text("Start / End").tag(Day.Mode.range)
                         Text("Total hours").tag(Day.Mode.total)
@@ -28,26 +46,33 @@ struct WorkDayView: View {
 
                 if d.mode == .range {
                     Section {
-                        DatePicker("Clock in", selection: minutesBinding({ model.draft.startMin }, { model.draft.startMin = $0 }),
-                                   displayedComponents: .hourAndMinute)
-                        DatePicker("Clock out", selection: minutesBinding({ model.draft.endMin }, { model.draft.endMin = $0 }),
-                                   displayedComponents: .hourAndMinute)
-                        Toggle("Lunch taken (30 min unpaid)", isOn: $model.draft.lunch)
-                    }
+                        DatePicker(selection: minutesBinding({ model.draft.startMin }, { model.draft.startMin = $0 }),
+                                   displayedComponents: .hourAndMinute) { Label("Clock in", systemImage: "arrow.right.circle") }
+                        DatePicker(selection: minutesBinding({ model.draft.endMin }, { model.draft.endMin = $0 }),
+                                   displayedComponents: .hourAndMinute) { Label("Clock out", systemImage: "arrow.left.circle") }
+                        Toggle(isOn: $model.draft.lunch) {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Lunch taken")
+                                    Text("30 min unpaid").font(.caption).foregroundStyle(Theme.muted)
+                                }
+                            } icon: { Image(systemName: "fork.knife") }
+                        }
+                    } header: { Text("Shift") }
                 } else {
                     Section {
                         HStack {
-                            Text("Hours worked")
+                            Label("Hours worked", systemImage: "hourglass")
                             Spacer()
                             DecimalField(placeholder: "0.00", value: Binding(
                                 get: { model.draft.totalHours ?? 0 }, set: { model.draft.totalHours = $0 }))
                         }
-                    }
+                    } header: { Text("Shift") }
                 }
 
-                Section {
-                    MoneyField(title: "Credit card tips", value: $model.draft.ccTips)
-                    MoneyField(title: "Cash tips", note: "tracked only — not on your check", value: $model.draft.cashTips)
+                Section("Tips") {
+                    MoneyField(title: "Credit card tips", icon: "creditcard", value: $model.draft.ccTips)
+                    MoneyField(title: "Cash tips", note: "tracked only — not on your check", icon: "banknote", value: $model.draft.cashTips)
                 }
 
                 Section("Long distance") {
@@ -58,32 +83,45 @@ struct WorkDayView: View {
                     }
                     .pickerStyle(.segmented)
                     HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("POV miles driven")
-                            Caps(d.miles > 0 ? "\(money(d.miles * mileRate)) at $\(String(format: "%.2f", mileRate))/mi" : "Reimbursed, not taxed")
-                        }
+                        Label {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("POV miles driven")
+                                Text(d.miles > 0 ? "\(money(d.miles * mileRate)) at $\(String(format: "%.2f", mileRate))/mi" : "Reimbursed, not taxed")
+                                    .font(.caption).foregroundStyle(Theme.muted)
+                            }
+                        } icon: { Image(systemName: "car") }
                         Spacer()
                         DecimalField(placeholder: "0", value: $model.draft.miles, width: 90)
                     }
                 }
 
                 Section {
-                    HStack(alignment: .firstTextBaseline) {
-                        Caps(rate > 0 ? "\(String(format: "%g", (hours * 100).rounded() / 100)) h worked" : "Set your rate in Settings")
-                        Spacer()
-                        Text(money(subtotal)).font(Theme.serif(28))
+                    VStack(spacing: 10) {
+                        Button {
+                            model.saveDraft()
+                            saved += 1
+                        } label: {
+                            Label(model.editing ? "Update day" : "Record day",
+                                  systemImage: model.editing ? "checkmark.circle.fill" : "plus.circle.fill")
+                        }
+                        .buttonStyle(PrimaryButtonStyle(color: model.editing ? Theme.ink : Theme.accent))
+                        if model.editing {
+                            HStack(spacing: 10) {
+                                Button("Cancel edit") { model.resetDraft() }
+                                    .buttonStyle(.bordered).tint(Theme.muted)
+                                Button("Delete", role: .destructive) { model.deleteDraft() }
+                                    .buttonStyle(.bordered).tint(Theme.accent)
+                            }
+                            .controlSize(.large)
+                        }
                     }
-                    Button(model.editing ? "Update day" : "Record day") { model.saveDraft() }
-                        .frame(maxWidth: .infinity).fontWeight(.semibold)
-                    if model.editing {
-                        Button("Delete", role: .destructive) { model.deleteDraft() }.frame(maxWidth: .infinity)
-                        Button("Cancel edit") { model.resetDraft() }.frame(maxWidth: .infinity).foregroundStyle(Theme.muted)
-                    }
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.paper)
-            .navigationTitle("Work day")
+            .sensoryFeedback(.success, trigger: saved)
+            .paperBackground()
+            .navigationTitle(model.editing ? "Edit day" : "Work day")
         }
         .onChange(of: model.tab) { _, tab in
             // clock-out tracks "now" whenever a new day is opened, never mid-edit
@@ -95,14 +133,17 @@ struct WorkDayView: View {
 struct MoneyField: View {
     let title: String
     var note: String? = nil
+    var icon = "dollarsign.circle"
     @Binding var value: Double
 
     var body: some View {
         HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                if let note { Text(note).font(.caption).foregroundStyle(Theme.muted) }
-            }
+            Label {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                    if let note { Text(note).font(.caption).foregroundStyle(Theme.muted) }
+                }
+            } icon: { Image(systemName: icon) }
             Spacer()
             DecimalField(placeholder: "0.00", value: $value, width: 120, size: 20)
         }
