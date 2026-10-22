@@ -6,13 +6,16 @@ struct StatsView: View {
 
     var body: some View {
         let s = computeStats(model.data.days, model.data.rates, todayIso())
-        let cols = [GridItem(.flexible(), spacing: 1), GridItem(.flexible(), spacing: 1)]
+        let cols = [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)]
         ScrollView {
             if s.daysWorked == 0 {
-                Text("Log a few days and the stats show up here.").foregroundStyle(Theme.muted).padding(.top, 40)
+                ContentUnavailableView("No stats yet", systemImage: "chart.bar.xaxis",
+                                       description: Text("Log a few days and the stats show up here."))
+                    .padding(.top, 60)
             } else {
-                VStack(alignment: .leading, spacing: 18) {
-                    LazyVGrid(columns: cols, spacing: 1) {
+                VStack(alignment: .leading, spacing: 14) {
+                    Caps("Records").padding(.horizontal, 4)
+                    LazyVGrid(columns: cols, spacing: 12) {
                         tile("Highest earning day", s.highestDay.map { money($0.value) }, on(s.highestDay))
                         tile("Lowest earning day", s.lowestDay.map { money($0.value) }, on(s.lowestDay))
                         tile("Longest day", s.longestDay.map { hrs($0.value) }, on(s.longestDay))
@@ -28,10 +31,9 @@ struct StatsView: View {
                         tile("Most miles in a day", s.mostMiles.map { "\(String(format: "%g", $0.value)) mi" }, on(s.mostMiles))
                         tile("Busiest weekday", s.busiestWeekday?.name, s.busiestWeekday.map { "\(days($0.count)) worked" })
                     }
-                    .background(Theme.muted.opacity(0.3))
 
-                    Caps("All time")
-                    LazyVGrid(columns: cols, spacing: 1) {
+                    Caps("All time").padding(.horizontal, 4).padding(.top, 10)
+                    LazyVGrid(columns: cols, spacing: 12) {
                         tile("Days worked", "\(s.daysWorked)", "\(hrs(s.totalHours)) total")
                         tile("Avg per hour", money(s.avgHourly), "wages + all tips")
                         tile("Earned", money(s.totalEarned), "before tax")
@@ -39,24 +41,23 @@ struct StatsView: View {
                         tile("Cash tips", money(s.totalCash), nil)
                         tile("Per-diem", money(s.totalPerDiem), "\(days(s.travelDays)) on the road")
                     }
-                    .background(Theme.muted.opacity(0.3))
                 }
-                .padding(24)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
         }
         .background(Theme.paper)
         .navigationTitle("Stats")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func tile(_ label: String, _ value: String?, _ sub: String?) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Caps(label)
-            Text(value ?? "—").font(Theme.serif(24)).lineLimit(1).minimumScaleFactor(0.6)
+            Caps(label).lineLimit(1).minimumScaleFactor(0.75)
+            Text(value ?? "—").font(Theme.serif(24, weight: .semibold)).lineLimit(1).minimumScaleFactor(0.6)
             Text(sub ?? " ").font(Theme.mono(11)).foregroundStyle(Theme.muted).lineLimit(1)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
-        .background(Theme.paper)
+        .card(padding: 14)
     }
 
     private func on(_ x: DayStat?) -> String? { x.map { fmtFull($0.date) } }

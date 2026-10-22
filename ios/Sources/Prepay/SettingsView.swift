@@ -24,19 +24,20 @@ struct SettingsView: View {
             Form {
                 Section {
                     StubField(title: "Base rate", note: cur.map { "OT $\(f2($0.rate * OT_MULT))" } ?? "what you make an hour",
-                              value: cur?.rate ?? 0) { model.setBaseRate($0) }
+                              icon: "dollarsign.circle", value: cur?.rate ?? 0) { model.setBaseRate($0) }
                 } header: { Text("Hourly rate") }
 
                 Section {
                     if let pending {
                         HStack {
-                            Text("$\(f2(pending.rate)) from \(fmtMD(pending.effectiveFrom)) onward").foregroundStyle(Theme.accent)
+                            Label("$\(f2(pending.rate)) from \(fmtMD(pending.effectiveFrom)) onward", systemImage: "arrow.up.right.circle.fill")
+                                .foregroundStyle(Theme.accent)
                             Spacer()
                             Button("Clear") { model.clearRaise() }
                         }
                     } else {
                         HStack {
-                            Text("New rate")
+                            Label("New rate", systemImage: "arrow.up.right.circle")
                             Spacer()
                             DecimalField(placeholder: "0.00", value: $raiseRate)
                         }
@@ -45,10 +46,10 @@ struct SettingsView: View {
                             Text("Next · \(fmtMD(nextPeriod(pay).from))").tag(true)
                         }
                         .pickerStyle(.segmented)
-                        Button("Start the raise") {
+                        Button {
                             model.scheduleRaise(raiseRate, from: raiseNext ? nextPeriod(pay).from : pay.from)
                             raiseRate = 0
-                        }
+                        } label: { Label("Start the raise", systemImage: "checkmark.circle.fill").fontWeight(.semibold) }
                         .disabled(raiseRate <= 0)
                     }
                 } header: { Text("Raise") } footer: { Text("Once its date arrives it becomes the base rate.") }
@@ -66,19 +67,23 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     if customStart || !Self.presets.contains(s.defaultStartMin) {
-                        DatePicker("Clock in at", selection: minutesBinding({ model.data.settings.defaultStartMin },
+                        DatePicker(selection: minutesBinding({ model.data.settings.defaultStartMin },
                                                                             { v in model.updateSettings { $0.defaultStartMin = v } }),
-                                   displayedComponents: .hourAndMinute)
+                                   displayedComponents: .hourAndMinute) { Label("Clock in at", systemImage: "clock") }
                     }
-                    Toggle("Lunch taken by default", isOn: Binding(
-                        get: { s.defaultLunch }, set: { v in model.updateSettings { $0.defaultLunch = v } }))
+                    Toggle(isOn: Binding(
+                        get: { s.defaultLunch }, set: { v in model.updateSettings { $0.defaultLunch = v } })) {
+                        Label("Lunch taken by default", systemImage: "fork.knife")
+                    }
                 }
 
                 Section {
-                    Toggle("Tuition reimbursement", isOn: Binding(
-                        get: { s.tuitionOn }, set: { v in model.updateSettings { $0.tuitionOn = v } }))
+                    Toggle(isOn: Binding(
+                        get: { s.tuitionOn }, set: { v in model.updateSettings { $0.tuitionOn = v } })) {
+                        Label("Tuition reimbursement", systemImage: "graduationcap")
+                    }
                     if s.tuitionOn {
-                        StubField(title: "Per hour worked", note: tuitionNote(data, pay, today), value: s.tuitionRate) { v in
+                        StubField(title: "Per hour worked", note: tuitionNote(data, pay, today), icon: "clock.badge.checkmark", value: s.tuitionRate) { v in
                             model.updateSettings { $0.tuitionRate = v }
                         }
                     }
@@ -87,19 +92,19 @@ struct SettingsView: View {
                 }
 
                 Section("POV mileage") {
-                    StubField(title: "Per mile", note: "reimbursed, not taxed", value: s.mileRate) { v in
+                    StubField(title: "Per mile", note: "reimbursed, not taxed", icon: "car", value: s.mileRate) { v in
                         model.updateSettings { $0.mileRate = v }
                     }
                 }
 
                 Section {
-                    StubField(title: "Available", note: "type the balance off your latest stub", value: cents(ledger.available)) {
+                    StubField(title: "Available", note: "type the balance off your latest stub", icon: "cross.case", value: cents(ledger.available)) {
                         model.setSickAvailable($0)
                     }
                     StubField(title: "Cash out on the \(fmtMD(pay.payDate)) check", note: "\(f2(ledger.available + cashout)) h can be cashed",
-                              value: cashout) { model.setCashout(pay.key, hours: max(0, $0)) }
+                              icon: "banknote", value: cashout) { model.setCashout(pay.key, hours: max(0, $0)) }
                     if ledger.available < -1e-9 {
-                        Text("More than you have accrued").foregroundStyle(Theme.accent)
+                        Label("More than you have accrued", systemImage: "exclamationmark.triangle.fill").foregroundStyle(Theme.accent)
                     }
                 } header: {
                     Text("Sick hours")
@@ -109,12 +114,24 @@ struct SettingsView: View {
                 }
 
                 Section("Account") {
-                    Text(model.email).font(Theme.mono(13))
-                    Button("Sign out", role: .destructive) { Task { await model.signOut() } }
+                    HStack(spacing: 12) {
+                        Text(String(model.email.prefix(1)).uppercased())
+                            .font(Theme.serif(20, weight: .semibold)).foregroundStyle(Theme.paper)
+                            .frame(width: 40, height: 40)
+                            .background(Theme.ink, in: Circle())
+                            .accessibilityHidden(true)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Signed in").font(.caption).foregroundStyle(Theme.muted)
+                            Text(model.email).font(Theme.mono(13)).lineLimit(1).truncationMode(.middle)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                    Button(role: .destructive) { Task { await model.signOut() } } label: {
+                        Label("Sign out", systemImage: "rectangle.portrait.and.arrow.right")
+                    }
                 }
             }
-            .scrollContentBackground(.hidden)
-            .background(Theme.paper)
+            .paperBackground()
             .navigationTitle("Settings")
         }
     }
