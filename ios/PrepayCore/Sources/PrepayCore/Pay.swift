@@ -61,7 +61,10 @@ public func pendingRaise(_ rates: [Rate], _ today: ISODate) -> Rate? {
 
 // MARK: - hours
 
-public struct DayCalc: Sendable { public var hours = 0.0, reg = 0.0, ot = 0.0 }
+public struct DayCalc: Sendable {
+    public var hours = 0.0, reg = 0.0, ot = 0.0
+    public init(hours: Double = 0, reg: Double = 0, ot: Double = 0) { self.hours = hours; self.reg = reg; self.ot = ot }
+}
 
 /// OT accrues within a Sat–Fri week on the hours past 40, in date order.
 public func computeHours(_ days: [Day]) -> [UUID: DayCalc] {
