@@ -54,20 +54,26 @@ final class AppModel {
     func load() async {
         if phase != .ready { phase = .loading }
         do {
-            let days: [Day] = try await client.from("days").select().order("date").execute().value
-            let stubs: [Stub] = try await client.from("stubs").select().order("period_start", ascending: false).execute().value
-            let rates: [Rate] = try await client.from("rates").select("effective_from, rate").order("effective_from").execute().value
-            let settings: [Settings] = try await client.from("settings").select().execute().value
-            let cashouts: [Cashout] = try await client.from("sick_cashouts").select("period_start, hours").execute().value
-            let tuition: [TuitionEvent] = try await client.from("tuition_events").select("period_start, status, amount").execute().value
-            data = PrepayData(days: days, stubs: stubs, rates: rates, settings: settings.first ?? .defaults(),
-                              cashouts: cashouts, tuition: tuition)
+            data = try await Self.fetchAll(client)
             if phase != .ready { resetDraft() }
             phase = .ready
         } catch {
             self.error = error.localizedDescription
             if phase != .ready { phase = .ready }
         }
+    }
+
+    /// Runs off the main actor: Supabase's response wrapper isn't Sendable,
+    /// so only the decoded rows, which are, come back across.
+    private nonisolated static func fetchAll(_ client: SupabaseClient) async throws -> PrepayData {
+        let days: [Day] = try await client.from("days").select().order("date").execute().value
+        let stubs: [Stub] = try await client.from("stubs").select().order("period_start", ascending: false).execute().value
+        let rates: [Rate] = try await client.from("rates").select("effective_from, rate").order("effective_from").execute().value
+        let settings: [Settings] = try await client.from("settings").select().execute().value
+        let cashouts: [Cashout] = try await client.from("sick_cashouts").select("period_start, hours").execute().value
+        let tuition: [TuitionEvent] = try await client.from("tuition_events").select("period_start, status, amount").execute().value
+        return PrepayData(days: days, stubs: stubs, rates: rates, settings: settings.first ?? .defaults(),
+                          cashouts: cashouts, tuition: tuition)
     }
 
     private func write(_ op: @escaping @Sendable (SupabaseClient) async throws -> Void) {
