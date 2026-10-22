@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { db, loadAll } from './db';
 import { todayIso } from './lib/dates';
+import { type Incoming, mergeData } from './lib/backup';
 import { type Data, type Day, type Settings, type Stub, type TuitionEvent, currentRate, pendingRaise, sickLedger } from './lib/pay';
 
 // Every change lands in local state first so the screen never waits on the
@@ -76,9 +77,15 @@ export function useStore(userId: string) {
     setTuition: (key: string, e: Omit<TuitionEvent, 'periodStart'> | null) => apply(
       d => ({ ...d, tuition: d.tuition.filter(x => x.periodStart !== key).concat(e ? [{ periodStart: key, ...e }] : []) }),
       () => db.saveTuition(key, e)),
-    replaceAll: async (next: Data) => {
+    // Adds a backup or the old app's data to the account; nothing already
+    // there is lost, and a day in both isn't doubled.
+    mergeIn: async (incoming: Incoming) => {
+      if (!ref.current) return;
+      const next = mergeData(ref.current, incoming);
+      const kept = new Set(next.days.map(d => d.id));
+      const dropped = ref.current.days.filter(d => !kept.has(d.id)).map(d => d.id);
       setData(next);
-      try { await db.replaceAll(next); } catch (e) { setError((e as Error).message); }
+      try { await db.writeMerged(next, dropped); } catch (e) { setError((e as Error).message); }
       await reload();
     },
   };

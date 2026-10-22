@@ -24,12 +24,12 @@ const fromDay = (d: Day) => ({
 
 const toStub = (r: Row): Stub => ({
   periodStart: r.period_start as string, periodEnd: r.period_end as string, payDate: r.pay_date as string,
-  regHours: num(r.reg_hours), otHours: num(r.ot_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus),
+  regHours: num(r.reg_hours), otHours: num(r.ot_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus), sickHours: num(r.sick_hours),
   reimbursement: num(r.reimbursement), tax: num(r.tax), taxIsEstimate: !!r.tax_is_estimate, cashTips: num(r.cash_tips),
 });
 const fromStub = (s: Stub) => ({
   period_start: s.periodStart, period_end: s.periodEnd, pay_date: s.payDate,
-  reg_hours: s.regHours, ot_hours: s.otHours, cc_tips: s.ccTips, bonus: s.bonus,
+  reg_hours: s.regHours, ot_hours: s.otHours, cc_tips: s.ccTips, bonus: s.bonus, sick_hours: s.sickHours,
   reimbursement: s.reimbursement, tax: s.tax, tax_is_estimate: s.taxIsEstimate, cash_tips: s.cashTips,
 });
 
@@ -87,21 +87,19 @@ export const db = {
     ? must(supabase.from('tuition_events').upsert({ period_start: key, status: e.status, amount: e.amount }))
     : must(supabase.from('tuition_events').delete().eq('period_start', key)),
 
-  // Replaces everything the user has with a backup.
-  async replaceAll(d: Data) {
-    for (const t of ['days', 'stubs', 'rates', 'sick_cashouts', 'tuition_events']) {
-      // RLS limits the delete to the caller's own rows; the filter is only
-      // there because PostgREST refuses an unfiltered delete.
-      await must(supabase.from(t).delete().not('user_id', 'is', null));
-    }
+  // Writes a merged import. Everything is upserted, so a dropped connection
+  // part-way leaves the account with more rows, never fewer; only the days the
+  // import replaced (dropDayIds) are deleted, and only after the rest is in.
+  async writeMerged(d: Data, dropDayIds: string[]) {
     await db.saveSettings(d.settings);
-    if (d.days.length) await must(supabase.from('days').insert(d.days.map(fromDay)));
-    if (d.stubs.length) await must(supabase.from('stubs').insert(d.stubs.map(fromStub)));
-    if (d.rates.length) await must(supabase.from('rates').insert(
-      d.rates.map(r => ({ effective_from: r.effectiveFrom, rate: r.rate }))));
-    if (d.cashouts.length) await must(supabase.from('sick_cashouts').insert(
+    if (d.days.length) await must(supabase.from('days').upsert(d.days.map(fromDay)));
+    if (d.stubs.length) await must(supabase.from('stubs').upsert(d.stubs.map(fromStub)));
+    if (d.rates.length) await must(supabase.from('rates').upsert(
+      d.rates.map(r => ({ effective_from: r.effectiveFrom, rate: r.rate })), { onConflict: 'user_id,effective_from' }));
+    if (d.cashouts.length) await must(supabase.from('sick_cashouts').upsert(
       d.cashouts.map(c => ({ period_start: c.periodStart, hours: c.hours }))));
-    if (d.tuition.length) await must(supabase.from('tuition_events').insert(
+    if (d.tuition.length) await must(supabase.from('tuition_events').upsert(
       d.tuition.map(e => ({ period_start: e.periodStart, status: e.status, amount: e.amount }))));
+    if (dropDayIds.length) await must(supabase.from('days').delete().in('id', dropDayIds));
   },
 };

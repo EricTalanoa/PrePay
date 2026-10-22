@@ -60,6 +60,7 @@ public struct Stub: Codable, Hashable, Sendable {
     public var otHours: Double
     public var ccTips: Double
     public var bonus: Double // the per-diem, which payroll prints as "spot bonus"
+    public var sickHours: Double // cashed out on this check, at straight time
     public var reimbursement: Double
     public var tax: Double
     public var taxIsEstimate: Bool
@@ -68,13 +69,15 @@ public struct Stub: Codable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case periodStart = "period_start", periodEnd = "period_end", payDate = "pay_date"
         case regHours = "reg_hours", otHours = "ot_hours", ccTips = "cc_tips", bonus, reimbursement, tax
+        case sickHours = "sick_hours"
         case taxIsEstimate = "tax_is_estimate", cashTips = "cash_tips"
     }
 
     public init(periodStart: ISODate, periodEnd: ISODate, payDate: ISODate, regHours: Double, otHours: Double,
-                ccTips: Double, bonus: Double, reimbursement: Double, tax: Double, taxIsEstimate: Bool, cashTips: Double) {
+                ccTips: Double, bonus: Double, sickHours: Double = 0, reimbursement: Double, tax: Double,
+                taxIsEstimate: Bool, cashTips: Double) {
         self.periodStart = periodStart; self.periodEnd = periodEnd; self.payDate = payDate
-        self.regHours = regHours; self.otHours = otHours; self.ccTips = ccTips; self.bonus = bonus
+        self.regHours = regHours; self.otHours = otHours; self.ccTips = ccTips; self.bonus = bonus; self.sickHours = sickHours
         self.reimbursement = reimbursement; self.tax = tax; self.taxIsEstimate = taxIsEstimate; self.cashTips = cashTips
     }
 }

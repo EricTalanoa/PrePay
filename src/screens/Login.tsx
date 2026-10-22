@@ -1,5 +1,39 @@
 import { useState } from 'react';
 import { supabase } from '../supabase';
+import { fmtMD } from '../lib/dates';
+import { latestDay, readLegacyStorage, toBackup } from '../lib/backup';
+
+// The old app kept its log in this browser. On an iPhone a home-screen icon
+// has its own storage, and signing in from it can finish in Safari instead,
+// where the log isn't. So offer it here, before sign-in, as text to carry over.
+function OldLog() {
+  const legacy = readLegacyStorage();
+  const [text, setText] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  if (!legacy) return null;
+  const last = latestDay(legacy);
+  const copy = () => {
+    const t = toBackup(legacy);
+    setText(t);
+    navigator.clipboard?.writeText(t).then(() => setCopied(true), () => setCopied(false));
+  };
+  return (
+    <div className="card" style={{ maxWidth: 320, textAlign: 'left', gap: 10 }}>
+      <div className="label accent">Your old log is on this device</div>
+      <div style={{ fontSize: 14 }}>
+        {legacy.days.length} days{last && <> through {fmtMD(last)}</>}, {legacy.stubs.length} stubs.
+        Sign in here and it shows up in Settings to move into your account.
+        If signing in sends you to another browser, copy it first, then paste it
+        into Settings → Import there.
+      </div>
+      <button className="btn ghost" onClick={copy}>{copied ? 'Copied' : 'Copy my old log'}</button>
+      {text && !copied && (
+        <textarea readOnly value={text} onFocus={e => e.target.select()}
+          style={{ height: 90, fontSize: 10, width: '100%' }} aria-label="Old log to copy" />
+      )}
+    </div>
+  );
+}
 
 export function Login() {
   const [err, setErr] = useState<string | null>(null);
@@ -26,6 +60,7 @@ export function Login() {
         </button>
       </div>
       {err && <div className="label warn">{err}</div>}
+      <OldLog />
     </div>
   );
 }

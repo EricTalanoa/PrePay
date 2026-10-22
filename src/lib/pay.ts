@@ -26,6 +26,7 @@ export interface Stub {
   otHours: number;
   ccTips: number;
   bonus: number; // the per-diem, which payroll prints as "spot bonus"
+  sickHours: number; // cashed out on this check, at straight time
   reimbursement: number;
   tax: number;
   taxIsEstimate: boolean;
@@ -74,16 +75,37 @@ export const PER_DIEM: Record<Travel, number> = { none: 0, partial: 51, full: 75
 // skip tips; Workers Comp is per hour actually worked, so cashed-out sick
 // hours are outside it.
 export const TAX = {
-  fed: 0.12, fedAllow: 757, ss: 0.062, med: 0.0145,
+  ss: 0.062, med: 0.0145,
   fli: 0.005433, cares: 0.0058, mli: 0.002643, wc: 0.3519,
 };
+
+// Federal withholding: the 2026 IRS percentage method for a semi-monthly
+// payroll, single, standard W-4 (Pub. 15-T). Each row is where a rate starts:
+// the annual bracket plus the $16,100 standard deduction, over 24 checks.
+// A flat 12% matched small checks but missed the 22% band entirely, which is
+// $165 on a $4,400 check.
+export const FED_BRACKETS: [from: number, rate: number][] = [
+  [670.83, 0.10], [1187.50, 0.12], [2770.83, 0.22], [5075.00, 0.24],
+  [9078.13, 0.32], [11346.88, 0.35], [27362.50, 0.37],
+];
+
+export function federalTax(wages: number): number {
+  let t = 0;
+  FED_BRACKETS.forEach(([from, rate], i) => {
+    const to = FED_BRACKETS[i + 1]?.[0] ?? Infinity;
+    if (wages > from) t += (Math.min(wages, to) - from) * rate;
+  });
+  return t;
+}
 
 export const num = (x: unknown): number => {
   const n = typeof x === 'number' ? x : parseFloat(String(x));
   return Number.isFinite(n) ? n : 0;
 };
 
-export const cents = (x: number) => Math.round((x + Number.EPSILON * Math.abs(x)) * 100) / 100;
+// Rounds half up to the cent the way payroll does. Going through toFixed(6)
+// first stops float noise (214.245 stored as 214.24499…) rounding down.
+export const cents = (x: number) => Math.round(+(x * 100).toFixed(6)) / 100;
 
 export function money(n: number): string {
   return (n < 0 ? '−$' : '$') + Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -188,7 +210,7 @@ export function totals(
   const waBase = regPay + otPay + sickPay + perDiem;
   const gross = waBase + tips;
   const taxLines: Record<string, number> = {
-    'Federal income tax': Math.max(0, TAX.fed * (gross - TAX.fedAllow)),
+    'Federal income tax': federalTax(gross),
     'Social Security': TAX.ss * gross,
     'Medicare': TAX.med * gross,
     'Washington FLI': TAX.fli * waBase,
@@ -204,11 +226,14 @@ export function totals(
 }
 
 export function stubTotals(s: Stub, rate: number) {
-  // payroll rounds each earnings line to cents before summing
-  const regPay = cents(num(s.regHours) * rate), otPay = cents(num(s.otHours) * rate * OT_MULT);
-  const gross = cents(regPay + otPay + num(s.ccTips) + num(s.bonus));
+  // Payroll rounds each earnings line to cents before summing, and prints
+  // overtime as two lines: OT straight (1x) and OT premium (0.5x).
+  const regPay = cents(num(s.regHours) * rate);
+  const otPay = cents(num(s.otHours) * rate) + cents(num(s.otHours) * rate * (OT_MULT - 1));
+  const sickPay = cents(num(s.sickHours) * rate);
+  const gross = cents(regPay + otPay + sickPay + num(s.ccTips) + num(s.bonus));
   return {
-    regPay, otPay, gross,
+    regPay, otPay, sickPay, gross,
     hours: num(s.regHours) + num(s.otHours),
     net: cents(gross - num(s.tax) + num(s.reimbursement)),
   };

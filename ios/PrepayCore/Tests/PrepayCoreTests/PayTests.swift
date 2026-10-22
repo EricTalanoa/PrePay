@@ -45,6 +45,21 @@ final class PayTests: XCTestCase {
         XCTAssertEqual(e.totals.waBase, 16 * 20 + 126, accuracy: 1e-9)
     }
 
+    func testFederalBrackets() {
+        XCTAssertEqual(federalTax(600), 0)
+        XCTAssertEqual(federalTax(1000), 0.10 * (1000 - 670.83), accuracy: 1e-9)
+        XCTAssertEqual(federalTax(4000), 51.667 + 190.0 + 0.22 * (4000 - 2770.83), accuracy: 0.01)
+    }
+
+    func testStubRounding() {
+        let s = Stub(periodStart: "2026-08-01", periodEnd: "2026-08-15", payDate: "2026-08-20", regHours: 10, otHours: 1.01,
+                     ccTips: 5, bonus: 51, sickHours: 2, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0)
+        let p = stubTotals(s, rate: 13.5)
+        XCTAssertEqual(p.otPay, 20.46, accuracy: 1e-9)
+        XCTAssertEqual(p.sickPay, 27, accuracy: 1e-9)
+        XCTAssertEqual(p.gross, 135 + 20.46 + 27 + 5 + 51, accuracy: 1e-9)
+    }
+
     func testRaiseBecomesBase() {
         let rates = [Rate(effectiveFrom: "2000-01-01", rate: 20), Rate(effectiveFrom: "2026-09-01", rate: 22)]
         XCTAssertEqual(currentRate(rates, "2026-08-20")?.rate, 20)

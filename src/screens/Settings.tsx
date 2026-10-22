@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type Period, fmtMD, fmtTime, nextPeriod, pad, todayIso } from '../lib/dates';
-import { toBackup, parseBackup, readLegacyStorage } from '../lib/backup';
+import { latestDay, parseBackup, readLegacyStorage, toBackup } from '../lib/backup';
 import {
   type Data, OT_MULT, currentRate, estimate, money, pendingRaise, sickLedger, tuitionExpected, tuitionOwed,
 } from '../lib/pay';
@@ -25,7 +25,7 @@ function Backup({ data, actions, onClose, mode }: { data: Data; actions: Actions
     }
     const parsed = parseBackup(text);
     if (!parsed) { setNote({ msg: "THAT DOESN'T LOOK LIKE A BACKUP", bad: true }); return; }
-    await actions.replaceAll(parsed);
+    await actions.mergeIn(parsed);
     onClose();
   };
   return (
@@ -37,11 +37,11 @@ function Backup({ data, actions, onClose, mode }: { data: Data; actions: Actions
         </div>
         <div className="muted" style={{ fontSize: 13 }}>
           {mode === 'import'
-            ? 'Paste a backup below. This replaces everything stored in your account. Old one-file Prepay exports work too.'
+            ? 'Paste a backup below. It is added to what your account already has; a day that is in both is kept once. Old one-file Prepay exports work too.'
             : 'Everything in your account as text. Keep it somewhere safe; importing it restores it all.'}
         </div>
         <textarea value={text} onChange={e => { setText(e.target.value); setNote(null); }} spellCheck={false} readOnly={mode === 'export'} />
-        <button className="btn" onClick={act}>{mode === 'import' ? 'Replace everything' : 'Copy to clipboard'}</button>
+        <button className="btn" onClick={act}>{mode === 'import' ? 'Add to my account' : 'Copy to clipboard'}</button>
         {note && <div className={'label' + (note.bad ? ' warn' : '')}>{note.msg}</div>}
       </div>
     </div>
@@ -213,11 +213,11 @@ export function Settings({ data, pay, actions, email, onSignOut }: {
         {legacy && (
           <div className="card">
             <div style={{ fontSize: 14 }}>
-              This browser still has data from the old Prepay: {legacy.days.length} days and {legacy.stubs.length} stubs.
+              This browser still has your log from the old Prepay: {legacy.days.length} days
+              {latestDay(legacy) && <> through {fmtMD(latestDay(legacy))}</>} and {legacy.stubs.length} stubs.
+              Moving it adds it to your account; days already here are kept once.
             </div>
-            <button className="btn" onClick={() => {
-              if (confirm('Replace everything in your account with the data saved in this browser?')) actions.replaceAll(legacy);
-            }}>Move it into my account</button>
+            <button className="btn" onClick={() => actions.mergeIn(legacy)}>Move it into my account</button>
           </div>
         )}
       </div>

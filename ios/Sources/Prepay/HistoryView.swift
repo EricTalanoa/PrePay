@@ -76,7 +76,7 @@ struct HistoryView: View {
     private func addStub(_ p: Period) {
         let t = estimate(model.data, p, todayIso()).totals
         model.saveStub(Stub(periodStart: p.key, periodEnd: p.to, payDate: p.payDate,
-                            regHours: cents(t.reg), otHours: cents(t.ot), ccTips: cents(t.tips), bonus: t.perDiem,
+                            regHours: cents(t.reg), otHours: cents(t.ot), ccTips: cents(t.tips), bonus: t.perDiem, sickHours: t.sick,
                             reimbursement: cents(t.tuition + t.milePay), tax: cents(t.tax), taxIsEstimate: true, cashTips: cents(t.cash)))
     }
 }
@@ -101,6 +101,7 @@ struct PeriodDetailView: View {
                     StubField(title: "Overtime hours", note: "@ $\(f2(rate * OT_MULT))", value: s.otHours) { var x = s; x.otHours = $0; model.saveStub(x) }
                     StubField(title: "CC tips", note: "taxed as wages", value: s.ccTips) { var x = s; x.ccTips = $0; model.saveStub(x) }
                     StubField(title: "Per-diem", note: "printed as spot bonus", value: s.bonus) { var x = s; x.bonus = $0; model.saveStub(x) }
+                    StubField(title: "Sick hours paid", note: "cashed out @ $\(f2(rate))", value: s.sickHours) { var x = s; x.sickHours = $0; model.saveStub(x) }
                     StubField(title: "Reimbursement", note: "tuition + mileage", value: s.reimbursement) { var x = s; x.reimbursement = $0; model.saveStub(x) }
                     StubField(title: "Taxes & deductions", note: s.taxIsEstimate ? "still the estimate — type it off the stub" : "as printed",
                               value: s.tax) { var x = s; x.tax = $0; x.taxIsEstimate = false; model.saveStub(x) }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { periodOf, upcomingPeriod } from './dates';
 import {
   type Data, type Day, DEFAULT_SETTINGS, computeHours, currentRate, estimate, pendingRaise, rateFor,
-  sickLedger, tuitionExpected, tuitionOwed, tuitionQuestions,
+  federalTax, sickLedger, stubTotals, tuitionExpected, tuitionOwed, tuitionQuestions,
 } from './pay';
 import { computeStats } from './stats';
 
@@ -42,6 +42,30 @@ describe('hours and pay', () => {
     expect(e.totals.perDiem).toBe(126);
     expect(e.totals.waBase).toBeCloseTo(16 * 20 + 126);
     expect(e.totals.taxLines['Washington FLI']).toBeCloseTo((16 * 20 + 126) * 0.005433);
+  });
+});
+
+describe('federal withholding', () => {
+  it('follows the 2026 semi-monthly brackets', () => {
+    expect(federalTax(600)).toBe(0);
+    expect(federalTax(1000)).toBeCloseTo(0.10 * (1000 - 670.83));
+    // all of the 10% band, then 12%
+    expect(federalTax(2000)).toBeCloseTo(51.667 + 0.12 * (2000 - 1187.5), 2);
+    // into the 22% band: a flat 12% would say 0.12 * (4000 - 757) = 389.16
+    expect(federalTax(4000)).toBeCloseTo(51.667 + 190.0 + 0.22 * (4000 - 2770.83), 2);
+  });
+});
+
+describe('stubs', () => {
+  it('rounds OT as straight + premium lines and includes sick pay in gross', () => {
+    const s = { periodStart: '2026-08-01', periodEnd: '2026-08-15', payDate: '2026-08-20', regHours: 10, otHours: 1.01,
+      sickHours: 2, ccTips: 5, bonus: 51, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0 };
+    const P = stubTotals(s, 13.5);
+    // 1.01 * 13.5 = 13.635 -> 13.64, premium 6.8175 -> 6.82; one line would give 20.45
+    expect(P.otPay).toBe(20.46);
+    expect(P.sickPay).toBe(27);
+    expect(P.gross).toBe(135 + 20.46 + 27 + 5 + 51);
+    expect(P.net).toBe(P.gross - 20 + 7);
   });
 });
 
