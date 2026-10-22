@@ -32,6 +32,7 @@ final class Screenshots: XCTestCase {
         model.data = SampleData.make()
         model.email = "you@example.com"
         model.resetDraft()
+        model.draft.endMin = 16 * 60 + 30 // not whatever hour the CI machine runs at
         model.phase = .ready
         let root = screen(model)
             .environment(model)

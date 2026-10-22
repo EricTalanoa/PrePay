@@ -200,6 +200,7 @@ struct Pill: View {
 
     var body: some View {
         Text(text.uppercased()).font(Theme.mono(9, weight: .semibold)).tracking(1.0)
+            .lineLimit(1).fixedSize()
             .padding(.horizontal, 8).padding(.vertical, 3)
             .foregroundStyle(color)
             .background(color.opacity(0.12), in: Capsule())
