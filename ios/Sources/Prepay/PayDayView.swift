@@ -33,9 +33,9 @@ struct PayDayView: View {
                     // The check itself.
                     VStack(alignment: .leading, spacing: 0) {
                         HStack {
-                            Caps("Pay day · \(fmtMD(pay.payDate))", color: Theme.paper.opacity(0.65))
+                            Caps("Pay day · \(fmtMD(pay.payDate))", color: Theme.onHero.opacity(0.65))
                             Spacer()
-                            Image(systemName: "dollarsign.circle.fill").foregroundStyle(Theme.accentLight)
+                            Image(systemName: "dollarsign.circle.fill").foregroundStyle(Theme.heroAccent)
                         }
                         Text(money(t.net))
                             .font(Theme.serif(56, weight: .semibold))
@@ -43,19 +43,18 @@ struct PayDayView: View {
                             .contentTransition(.numericText())
                             .padding(.top, 8)
                         Text(t.gross > 0 ? "net estimate · gross \(money(t.gross))" : t.tuition > 0 ? "reimbursement only · nothing logged yet" : "nothing logged yet")
-                            .font(.subheadline).foregroundStyle(Theme.paper.opacity(0.7))
+                            .font(.subheadline).foregroundStyle(Theme.onHero.opacity(0.7))
 
                         PeriodBar(value: elapsed, total: total).padding(.top, 22)
                         HStack {
-                            Caps(fmtRange(pay), color: Theme.paper.opacity(0.65))
+                            Caps(fmtRange(pay), color: Theme.onHero.opacity(0.65))
                             Spacer()
                             Caps(daysOut <= 0 ? "Today" : closed ? "Closed · pays in \(daysOut) day\(daysOut == 1 ? "" : "s")" : "\(daysOut) day\(daysOut == 1 ? "" : "s") out",
-                                 color: closed || daysOut <= 0 ? Theme.accentLight : Theme.paper.opacity(0.65))
+                                 color: closed || daysOut <= 0 ? Theme.heroAccent : Theme.onHero.opacity(0.65))
                         }
                         .padding(.top, 8)
                     }
-                    .foregroundStyle(Theme.paper)
-                    .card(padding: 22, fill: Theme.ink, stroke: .clear)
+                    .heroCard(padding: 22)
 
                     // Where the number comes from.
                     VStack(alignment: .leading, spacing: 0) {
@@ -167,7 +166,7 @@ struct PeriodBar: View {
     var body: some View {
         GeometryReader { g in
             ZStack(alignment: .leading) {
-                Capsule().fill(Theme.paper.opacity(0.18))
+                Capsule().fill(Theme.onHero.opacity(0.18))
                 Capsule().fill(Theme.accent)
                     .frame(width: total > 0 ? max(6, g.size.width * min(1, value / total)) : 0)
             }
@@ -201,9 +200,10 @@ struct TuitionAsk: View {
             HStack {
                 Button("No — next check") { model.setTuition(period.key, .missed) }.buttonStyle(.bordered)
                 Spacer()
-                Button("Yes") { model.setTuition(period.key, .received, amount: amount) }.buttonStyle(.borderedProminent)
+                Button("Yes") { model.setTuition(period.key, .received, amount: amount) }
+                    .buttonStyle(.borderedProminent).foregroundStyle(Theme.onButton)
             }
-            .tint(Theme.ink)
+            .tint(Theme.button)
             .controlSize(.large)
         }
         .card(stroke: Theme.accent.opacity(0.4))
