@@ -24,12 +24,12 @@ const fromDay = (d: Day) => ({
 
 const toStub = (r: Row): Stub => ({
   periodStart: r.period_start as string, periodEnd: r.period_end as string, payDate: r.pay_date as string,
-  regHours: num(r.reg_hours), otHours: num(r.ot_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus), sickHours: num(r.sick_hours),
+  regHours: num(r.reg_hours), otHours: num(r.ot_hours), holHours: num(r.hol_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus), sickHours: num(r.sick_hours),
   reimbursement: num(r.reimbursement), tax: num(r.tax), taxIsEstimate: !!r.tax_is_estimate, cashTips: num(r.cash_tips),
 });
 const fromStub = (s: Stub) => ({
   period_start: s.periodStart, period_end: s.periodEnd, pay_date: s.payDate,
-  reg_hours: s.regHours, ot_hours: s.otHours, cc_tips: s.ccTips, bonus: s.bonus, sick_hours: s.sickHours,
+  reg_hours: s.regHours, ot_hours: s.otHours, hol_hours: s.holHours, cc_tips: s.ccTips, bonus: s.bonus, sick_hours: s.sickHours,
   reimbursement: s.reimbursement, tax: s.tax, tax_is_estimate: s.taxIsEstimate, cash_tips: s.cashTips,
 });
 

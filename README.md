@@ -59,11 +59,12 @@ is ported line for line to
 change the other.
 
 Wages are `regular hours x rate` plus `overtime hours x rate x 1.5`, overtime
-counting past 40 hours in a Saturday–Friday week.
+counting past 40 hours in a Saturday–Friday week, plus `holiday hours x rate x
+1.5` for hours worked on a holiday (below).
 
 | Amount | In gross? | In the WA premiums? | Notes |
 | --- | --- | --- | --- |
-| Regular and overtime pay | yes | yes | |
+| Regular, overtime and holiday pay | yes | yes | |
 | Credit-card tips | yes | **no** | taxed federally, outside FLI/Cares/MLI |
 | Per-diem | yes | yes | paid as the "spot bonus" on the stub |
 | Sick-hour cash-out | yes | yes | straight time, no Workers Comp; entered on a stub as sick hours paid |
@@ -80,6 +81,29 @@ Deduction rates, read off the stubs:
 | Washington Cares | 0.58% | wages + per-diem |
 | Washington MLI | 0.2643% | wages + per-diem |
 | WA Workers Comp | $0.3519 / hour | hours actually worked |
+
+### Holidays
+
+Hours worked on a holiday are paid at **time and a half**. A holiday you take
+off pays nothing: the Sep 2026 stub had no hours for Labor Day. The holidays
+are in [`src/lib/holidays.ts`](src/lib/holidays.ts):
+
+- New Year's Day (Jan 1)
+- Memorial Day (last Monday in May)
+- Independence Day (Jul 4)
+- Labor Day (first Monday in September)
+- Thanksgiving (fourth Thursday in November)
+- Christmas (Dec 25)
+
+One that falls on a Saturday is observed the Friday before, and one on a Sunday
+the Monday after; only the observed day pays the premium. July 4, 2026 was a
+Saturday, so it was Friday July 3.
+
+Holiday hours count toward the week's 40, so a holiday early in the week can
+push later shifts into overtime. They don't stack, though: a holiday hour past
+40 is still paid 1.5x, not 2.25x. Work day shows the holiday and its 1.5x pay
+when you pick one. On History, a stub has its own **Holiday hours** field for
+that line of the real stub.
 
 ### Per-diem
 

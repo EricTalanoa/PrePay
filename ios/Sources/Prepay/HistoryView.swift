@@ -79,7 +79,7 @@ struct HistoryView: View {
     private func addStub(_ p: Period) {
         let t = estimate(model.data, p, todayIso()).totals
         model.saveStub(Stub(periodStart: p.key, periodEnd: p.to, payDate: p.payDate,
-                            regHours: cents(t.reg), otHours: cents(t.ot), ccTips: cents(t.tips), bonus: t.perDiem, sickHours: t.sick,
+                            regHours: cents(t.reg), otHours: cents(t.ot), holHours: cents(t.hol), ccTips: cents(t.tips), bonus: t.perDiem, sickHours: t.sick,
                             reimbursement: cents(t.tuition + t.milePay), tax: cents(t.tax), taxIsEstimate: true, cashTips: cents(t.cash)))
     }
 }
@@ -102,6 +102,7 @@ struct PeriodDetailView: View {
                 Section("Off the stub") {
                     StubField(title: "Regular hours", note: "@ $\(f2(rate))", value: s.regHours) { var x = s; x.regHours = $0; model.saveStub(x) }
                     StubField(title: "Overtime hours", note: "@ $\(f2(rate * OT_MULT))", value: s.otHours) { var x = s; x.otHours = $0; model.saveStub(x) }
+                    StubField(title: "Holiday hours", note: "worked on a holiday @ $\(f2(rate * HOL_MULT))", value: s.holHours) { var x = s; x.holHours = $0; model.saveStub(x) }
                     StubField(title: "CC tips", note: "taxed as wages", value: s.ccTips) { var x = s; x.ccTips = $0; model.saveStub(x) }
                     StubField(title: "Per-diem", note: "printed as spot bonus", value: s.bonus) { var x = s; x.bonus = $0; model.saveStub(x) }
                     StubField(title: "Sick hours paid", note: "cashed out @ $\(f2(rate))", value: s.sickHours) { var x = s; x.sickHours = $0; model.saveStub(x) }
@@ -134,6 +135,7 @@ struct PeriodDetailView: View {
                 Section("Estimate") {
                     if t.reg > 0 { LineRow(name: "Regular \(f2(t.reg))h", amount: money(t.regPay)) }
                     if t.ot > 0 { LineRow(name: "Overtime \(f2(t.ot))h", amount: money(t.otPay)) }
+                    if t.hol > 0 { LineRow(name: "Holiday \(f2(t.hol))h", amount: money(t.holPay)) }
                     if t.tips > 0 { LineRow(name: "CC tips", amount: money(t.tips)) }
                     if t.perDiem > 0 { LineRow(name: "Per-diem", amount: money(t.perDiem)) }
                     LineRow(name: "Gross", amount: money(t.gross), bold: true)
@@ -176,9 +178,9 @@ struct PeriodDetailView: View {
         guard hasDays else { return [] }
         var out: [String] = []
         let word = { (x: Double) in x > 0 ? "SHORT" : "OVER" }
-        let dT = l.tips - s.ccTips, dH = l.hrs - (s.regHours + s.otHours), dP = l.perDiem - s.bonus
+        let dT = l.tips - s.ccTips, dH = l.hrs - s.hours, dP = l.perDiem - s.bonus
         if abs(dT) > 0.005 { out.append("CC tips \(word(dT)) \(money(abs(dT))) · \(money(l.tips)) logged, \(money(s.ccTips)) paid") }
-        if abs(dH) > 0.05 { out.append("Hours \(word(dH)) \(f2(abs(dH)))h · \(f2(l.hrs))h logged, \(f2(s.regHours + s.otHours))h paid") }
+        if abs(dH) > 0.05 { out.append("Hours \(word(dH)) \(f2(abs(dH)))h · \(f2(l.hrs))h logged, \(f2(s.hours))h paid") }
         if abs(dP) > 0.005 { out.append("Per-diem \(word(dP)) \(money(abs(dP))) · \(money(l.perDiem)) logged, \(money(s.bonus)) paid") }
         return out
     }

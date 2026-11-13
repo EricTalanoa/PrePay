@@ -1,5 +1,5 @@
 import { type ISODate, addDays, daysBetween, dparse, fmtTime, weekStart } from './dates';
-import { type Day, type Rate, OT_MULT, computeHours, num, perDiemFor, rateFor } from './pay';
+import { type Day, type Rate, computeHours, dayWages, num, perDiemFor, rateFor } from './pay';
 
 export interface DayStat { date: ISODate; value: number }
 export interface Run { from: ISODate; to: ISODate; days: number }
@@ -50,7 +50,7 @@ export function computeStats(days: Day[], rates: Rate[], today: ISODate): Stats 
   for (const d of days) {
     const c = calc[d.id];
     const rate = rateFor(rates, d.date);
-    const wages = c.reg * rate + c.ot * rate * OT_MULT;
+    const wages = dayWages(c, rate);
     const e = byDate.get(d.date) ?? { hours: 0, earned: 0, cash: 0, cc: 0, miles: 0 };
     e.hours += c.hours;
     e.earned += wages + num(d.ccTips) + num(d.cashTips);

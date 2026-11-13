@@ -15,7 +15,57 @@ private func data(days: [Day] = [], tuition: [TuitionEvent] = [], settings: Sett
     return PrepayData(days: days, rates: [Rate(effectiveFrom: "2000-01-01", rate: 20)], settings: s, tuition: tuition)
 }
 
+private func total(_ date: ISODate, _ h: Double) -> Day {
+    day(date) { $0.mode = .total; $0.totalHours = h }
+}
+
 final class PayTests: XCTestCase {
+    func testHolidays() {
+        XCTAssertEqual(holidayOn("2026-01-01"), "New Year's Day")
+        XCTAssertEqual(holidayOn("2026-05-25"), "Memorial Day")
+        XCTAssertEqual(holidayOn("2026-09-07"), "Labor Day")
+        XCTAssertEqual(holidayOn("2026-11-26"), "Thanksgiving")
+        XCTAssertEqual(holidayOn("2026-12-25"), "Christmas")
+        XCTAssertEqual(holidayOn("2026-07-03"), "Independence Day") // Sat Jul 4 -> Fri
+        XCTAssertNil(holidayOn("2026-07-04"))
+        XCTAssertEqual(holidayOn("2022-12-26"), "Christmas") // Sun Dec 25 -> Mon
+        XCTAssertNil(holidayOn("2022-12-25"))
+        XCTAssertEqual(holidayOn("2027-12-31"), "New Year's Day") // Sat Jan 1 2028 -> Fri
+        XCTAssertNil(holidayOn("2026-11-11"))
+        XCTAssertNil(holidayOn("2026-11-27"))
+    }
+
+    func testHolidayHoursDontStack() {
+        // 36h Mon-Wed, 8h on Thanksgiving, 8h Friday
+        let days = [total("2026-11-23", 12), total("2026-11-24", 12), total("2026-11-25", 12),
+                    total("2026-11-26", 8), total("2026-11-27", 8)]
+        let c = computeHours(days).values
+        XCTAssertEqual(c.reduce(0) { $0 + $1.reg }, 36, accuracy: 1e-9)
+        XCTAssertEqual(c.reduce(0) { $0 + $1.hol }, 8, accuracy: 1e-9)
+        XCTAssertEqual(c.reduce(0) { $0 + $1.ot }, 8, accuracy: 1e-9)
+    }
+
+    func testHolidayPushesLaterDaysIntoOvertime() {
+        let days = [total("2026-09-07", 8)] + ["08", "09", "10", "11"].map { total("2026-09-\($0)", 9) }
+        let c = computeHours(days).values
+        XCTAssertEqual(c.reduce(0) { $0 + $1.hol }, 8, accuracy: 1e-9)
+        XCTAssertEqual(c.reduce(0) { $0 + $1.ot }, 4, accuracy: 1e-9)
+        XCTAssertEqual(c.reduce(0) { $0 + $1.reg }, 32, accuracy: 1e-9)
+    }
+
+    func testHolidayPayInEstimateAndStub() {
+        let t = estimate(data(days: [total("2026-11-26", 8), total("2026-11-25", 8)]), periodOf("2026-11-26"), "2026-11-27").totals
+        XCTAssertEqual(t.holPay, 240, accuracy: 1e-9)
+        XCTAssertEqual(t.waBase, 160 + 240, accuracy: 1e-9)
+        XCTAssertEqual(t.hrs, 16, accuracy: 1e-9)
+        let s = Stub(periodStart: "2026-11-16", periodEnd: "2026-11-30", payDate: "2026-12-04", regHours: 60, otHours: 0,
+                     holHours: 8, ccTips: 0, bonus: 0, reimbursement: 0, tax: 0, taxIsEstimate: false, cashTips: 0)
+        let p = stubTotals(s, rate: 13.5)
+        XCTAssertEqual(p.holPay, 162)
+        XCTAssertEqual(p.gross, 972)
+        XCTAssertEqual(p.hours, 68)
+    }
+
     func testPeriods() {
         let p = periodOf("2026-08-15")
         XCTAssertEqual([p.key, p.to, p.payDate], ["2026-08-01", "2026-08-15", "2026-08-20"])

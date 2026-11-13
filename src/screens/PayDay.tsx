@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { type Period, daysBetween, fmtMD, fmtRange, nextPeriod, todayIso } from '../lib/dates';
-import { type Data, type Day, OT_MULT, computeHours, estimate, money, tuitionOwed, tuitionQuestions } from '../lib/pay';
+import { type Data, type Day, HOL_MULT, OT_MULT, computeHours, estimate, money, tuitionOwed, tuitionQuestions } from '../lib/pay';
 import type { Actions } from '../store';
 import { Line, NumField } from '../ui';
 import { DayRow, newestFirst } from './DayRow';
@@ -67,6 +67,7 @@ export function PayDay({ data, pay, actions, onEdit }: { data: Data; pay: Period
       <div className="lines" style={{ margin: '24px 24px 0' }}>
         {T.reg > 0 && <Line name="Regular" detail={`${T.reg.toFixed(2)}h @ ${T.rate.toFixed(2)}`} amt={money(T.regPay)} />}
         {T.ot > 0 && <Line name="Overtime" detail={`${T.ot.toFixed(2)}h @ ${(T.rate * OT_MULT).toFixed(2)}`} amt={money(T.otPay)} />}
+        {T.hol > 0 && <Line name="Holiday" detail={`${T.hol.toFixed(2)}h @ ${(T.rate * HOL_MULT).toFixed(2)}`} amt={money(T.holPay)} />}
         {T.tips > 0 && <Line name="Credit card tips" amt={money(T.tips)} />}
         {T.perDiem > 0 && <Line name="Per-diem" detail={`${T.travelDays} day${T.travelDays === 1 ? '' : 's'} · as spot bonus`} amt={money(T.perDiem)} />}
         {T.sick > 0 && <Line name="Sick cash-out" detail={`${T.sick.toFixed(2)}h @ ${T.rate.toFixed(2)}`} amt={money(T.sickPay)} />}

@@ -49,7 +49,7 @@ public func computeStats(_ days: [Day], _ rates: [Rate], _ today: ISODate) -> St
         }
         var e = byDate[d.date] ?? DayAgg()
         e.hours += c.hours
-        e.earned += c.reg * rate + c.ot * rate * OT_MULT + d.ccTips + d.cashTips
+        e.earned += dayWages(c, rate) + d.ccTips + d.cashTips
         e.cash += d.cashTips; e.cc += d.ccTips; e.miles += d.miles
         byDate[d.date] = e
         s.totalPerDiem += perDiem(d.travel)
