@@ -7,7 +7,7 @@ const account = (): Data => ({
     { id: 'a1', date: '2026-08-16', mode: 'range', startMin: 465, endMin: 844, totalHours: null, lunch: false, ccTips: 33.33, cashTips: 0, travel: 'none', miles: 0 },
   ],
   stubs: [
-    { periodStart: '2026-08-16', periodEnd: '2026-08-31', payDate: '2026-09-04', regHours: 77.76, otHours: 0, ccTips: 290.32, bonus: 102, sickHours: 0, reimbursement: 123.25, tax: 432.17, taxIsEstimate: false, cashTips: 0 },
+    { periodStart: '2026-08-16', periodEnd: '2026-08-31', payDate: '2026-09-04', regHours: 77.76, otHours: 0, holHours: 0, ccTips: 290.32, bonus: 102, sickHours: 0, reimbursement: 123.25, tax: 432.17, taxIsEstimate: false, cashTips: 0 },
   ],
   rates: [{ effectiveFrom: '2000-01-01', rate: 25.5 }],
   cashouts: [],

@@ -1,6 +1,7 @@
 import {
   type ISODate, type Period, addDays, nextPeriod, periodOf, prevPeriod, shiftPeriod, weekStart,
 } from './dates';
+import { holidayOn } from './holidays';
 
 export type Travel = 'none' | 'partial' | 'full';
 
@@ -24,6 +25,7 @@ export interface Stub {
   payDate: ISODate;
   regHours: number;
   otHours: number;
+  holHours: number; // worked on a holiday, at time and a half
   ccTips: number;
   bonus: number; // the per-diem, which payroll prints as "spot bonus"
   sickHours: number; // cashed out on this check, at straight time
@@ -45,6 +47,8 @@ export interface Settings {
   tuitionRate: number;
   sickBalance: number;
   sickAsOf: ISODate;
+  rothPct: number; // Roth 401(k), percent of gross; 0 = off
+  rothFrom: ISODate | null; // first period it comes out of
 }
 
 export interface Data {
@@ -63,9 +67,13 @@ export const DEFAULT_SETTINGS: Omit<Settings, 'sickAsOf'> = {
   tuitionOn: true,
   tuitionRate: 1,
   sickBalance: 0,
+  rothPct: 0,
+  rothFrom: null,
 };
 
 export const OT_MULT = 1.5;
+// Hours worked on a holiday (see holidays.ts).
+export const HOL_MULT = 1.5;
 export const LUNCH_MIN = 30;
 
 // Fixed per-day amounts. Payroll pays them as a "spot bonus", taxed as wages.
@@ -121,6 +129,16 @@ export function dayHours(d: Pick<Day, 'mode' | 'startMin' | 'endMin' | 'totalHou
 
 export const perDiemFor = (d: Pick<Day, 'travel'>) => PER_DIEM[d.travel] ?? 0;
 
+// Roth 401(k): a percent of the whole gross (tips and per-diem too), taken
+// after tax, so it lowers the take-home but not the withholding. The company
+// matches up to ROTH_MATCH_MAX percent; the match goes to the account, not the
+// check.
+export const ROTH_MATCH_MAX = 6;
+
+export function rothPctFor(s: Settings, p: Period): number {
+  return num(s.rothPct) > 0 && s.rothFrom && p.key >= s.rothFrom ? num(s.rothPct) : 0;
+}
+
 // ---------------------------------------------------------------- rates
 
 const byFrom = (rates: Rate[]) => rates.slice().sort((a, b) => (a.effectiveFrom < b.effectiveFrom ? -1 : 1));
@@ -150,9 +168,12 @@ export function pendingRaise(rates: Rate[], today: ISODate): Rate | null {
 
 // ---------------------------------------------------------------- hours
 
-export interface DayCalc { hours: number; reg: number; ot: number }
+export interface DayCalc { hours: number; reg: number; ot: number; hol: number }
 
 // OT accrues within a Sat–Fri week on the hours past 40, in date order.
+// Holiday hours are all paid at HOL_MULT. They count toward the week's 40, so
+// they can push later days into overtime, but they never stack: a holiday
+// hour past 40 is still paid at 1.5x, not 2.25x.
 export function computeHours(days: Day[]): Record<string, DayCalc> {
   const sorted = days.slice().sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
   const run: Record<string, number> = {};
@@ -161,53 +182,62 @@ export function computeHours(days: Day[]): Record<string, DayCalc> {
     const k = weekStart(d.date);
     const h = dayHours(d);
     const before = run[k] ?? 0, after = before + h;
-    const ot = Math.max(0, after - 40) - Math.max(0, before - 40);
-    out[d.id] = { hours: h, ot, reg: h - ot };
+    if (holidayOn(d.date)) {
+      out[d.id] = { hours: h, reg: 0, ot: 0, hol: h };
+    } else {
+      const ot = Math.max(0, after - 40) - Math.max(0, before - 40);
+      out[d.id] = { hours: h, ot, reg: h - ot, hol: 0 };
+    }
     run[k] = after;
   }
   return out;
 }
+
+export const dayWages = (c: DayCalc, rate: number) => (c.reg + c.ot * OT_MULT + c.hol * HOL_MULT) * rate;
 
 export const daysIn = (days: Day[], p: Period) => days.filter(d => d.date >= p.from && d.date <= p.to);
 
 // Hours a period actually paid: the stub wins where there is one.
 export function periodHours(data: Data, p: Period, calc: Record<string, DayCalc>): number {
   const stub = data.stubs.find(s => s.periodStart === p.key);
-  if (stub) return num(stub.regHours) + num(stub.otHours);
+  if (stub) return stubHours(stub);
   return daysIn(data.days, p).reduce((a, d) => a + (calc[d.id]?.hours ?? 0), 0);
 }
+
+export const stubHours = (s: Stub) => num(s.regHours) + num(s.otHours) + num(s.holHours);
 
 // ---------------------------------------------------------------- totals
 
 export interface Totals {
-  reg: number; ot: number; hrs: number; tips: number; cash: number;
+  reg: number; ot: number; hol: number; hrs: number; tips: number; cash: number;
   perDiem: number; travelDays: number; miles: number; milePay: number;
   rate: number; sick: number; sickPay: number; tuition: number;
-  regPay: number; otPay: number; waBase: number; gross: number;
-  taxLines: Record<string, number>; tax: number; net: number;
+  regPay: number; otPay: number; holPay: number; waBase: number; gross: number;
+  taxLines: Record<string, number>; tax: number;
+  rothPct: number; roth: number; match: number; net: number;
 }
 
 export function totals(
   list: Day[], calc: Record<string, DayCalc>,
-  o: { rate: number; mileRate: number; sick?: number; tuition?: number },
+  o: { rate: number; mileRate: number; sick?: number; tuition?: number; rothPct?: number },
 ): Totals {
-  let reg = 0, ot = 0, hrs = 0, tips = 0, cash = 0, perDiem = 0, travelDays = 0, miles = 0;
+  let reg = 0, ot = 0, hol = 0, hrs = 0, tips = 0, cash = 0, perDiem = 0, travelDays = 0, miles = 0;
   for (const d of list) {
-    const c = calc[d.id] ?? { reg: 0, ot: 0, hours: 0 };
-    reg += c.reg; ot += c.ot; hrs += c.hours;
+    const c = calc[d.id] ?? { reg: 0, ot: 0, hol: 0, hours: 0 };
+    reg += c.reg; ot += c.ot; hol += c.hol; hrs += c.hours;
     tips += num(d.ccTips); cash += num(d.cashTips); miles += num(d.miles);
     perDiem += perDiemFor(d);
     if (d.travel !== 'none') travelDays++;
   }
   const rate = o.rate;
-  const regPay = reg * rate, otPay = ot * rate * OT_MULT;
+  const regPay = reg * rate, otPay = ot * rate * OT_MULT, holPay = hol * rate * HOL_MULT;
   const sick = num(o.sick), sickPay = sick * rate;
   const milePay = miles * num(o.mileRate);
   const tuition = num(o.tuition);
   // Tips are taxed federally but sit outside the three Washington premiums;
   // per-diem comes through as a bonus and is taxed like wages; tuition and
   // mileage are reimbursements, outside all of it.
-  const waBase = regPay + otPay + sickPay + perDiem;
+  const waBase = regPay + otPay + holPay + sickPay + perDiem;
   const gross = waBase + tips;
   const taxLines: Record<string, number> = {
     'Federal income tax': federalTax(gross),
@@ -219,9 +249,13 @@ export function totals(
     'WA Workers Comp': TAX.wc * hrs,
   };
   const tax = Object.values(taxLines).reduce((a, b) => a + b, 0);
+  const rothPct = num(o.rothPct);
+  const roth = gross * rothPct / 100;
+  const match = gross * Math.min(rothPct, ROTH_MATCH_MAX) / 100;
   return {
-    reg, ot, hrs, tips, cash, perDiem, travelDays, miles, milePay, rate, sick, sickPay, tuition,
-    regPay, otPay, waBase, gross, taxLines, tax, net: gross - tax + tuition + milePay,
+    reg, ot, hol, hrs, tips, cash, perDiem, travelDays, miles, milePay, rate, sick, sickPay, tuition,
+    regPay, otPay, holPay, waBase, gross, taxLines, tax, rothPct, roth, match,
+    net: gross - tax - roth + tuition + milePay,
   };
 }
 
@@ -230,11 +264,12 @@ export function stubTotals(s: Stub, rate: number) {
   // overtime as two lines: OT straight (1x) and OT premium (0.5x).
   const regPay = cents(num(s.regHours) * rate);
   const otPay = cents(num(s.otHours) * rate) + cents(num(s.otHours) * rate * (OT_MULT - 1));
+  const holPay = cents(num(s.holHours) * rate * HOL_MULT);
   const sickPay = cents(num(s.sickHours) * rate);
-  const gross = cents(regPay + otPay + sickPay + num(s.ccTips) + num(s.bonus));
+  const gross = cents(regPay + otPay + holPay + sickPay + num(s.ccTips) + num(s.bonus));
   return {
-    regPay, otPay, sickPay, gross,
-    hours: num(s.regHours) + num(s.otHours),
+    regPay, otPay, holPay, sickPay, gross,
+    hours: stubHours(s),
     net: cents(gross - num(s.tax) + num(s.reimbursement)),
   };
 }
@@ -349,6 +384,8 @@ export function estimate(data: Data, p: Period, today: ISODate, calc = computeHo
   const ev = data.tuition.find(e => e.periodStart === p.key);
   const owed = tuitionOwed(data, p, calc);
   const tuition = !expected ? 0 : ev?.status === 'received' ? num(ev.amount) : owed.amount;
-  const T = totals(list, calc, { rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick, tuition });
+  const T = totals(list, calc, {
+    rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick, tuition, rothPct: rothPctFor(data.settings, p),
+  });
   return { period: p, list, totals: T, tuitionExpected: expected, tuitionOwed: owed, accrual: accrualFor(T.hrs) };
 }

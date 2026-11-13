@@ -4,6 +4,8 @@ import Foundation
 // read the same rows and should come to the same numbers.
 
 public let OT_MULT = 1.5
+/// Hours worked on a holiday (see Holidays.swift).
+public let HOL_MULT = 1.5
 public let LUNCH_MIN = 30
 
 /// Fixed per-day amounts. Payroll pays them as a "spot bonus", taxed as wages.
@@ -56,6 +58,16 @@ public func dayHours(_ d: Day) -> Double {
     return max(0, Double(m) / 60)
 }
 
+/// Roth 401(k): a percent of the whole gross (tips and per-diem too), taken
+/// after tax, so it lowers the take-home but not the withholding. The company
+/// matches up to ROTH_MATCH_MAX percent; the match goes to the account.
+public let ROTH_MATCH_MAX = 6.0
+
+public func rothPctFor(_ s: Settings, _ p: Period) -> Double {
+    guard s.rothPct > 0, let from = s.rothFrom, p.key >= from else { return 0 }
+    return s.rothPct
+}
+
 // MARK: - rates
 
 private func byFrom(_ rates: [Rate]) -> [Rate] { rates.sorted { $0.effectiveFrom < $1.effectiveFrom } }
@@ -81,11 +93,18 @@ public func pendingRaise(_ rates: [Rate], _ today: ISODate) -> Rate? {
 // MARK: - hours
 
 public struct DayCalc: Sendable {
-    public var hours = 0.0, reg = 0.0, ot = 0.0
-    public init(hours: Double = 0, reg: Double = 0, ot: Double = 0) { self.hours = hours; self.reg = reg; self.ot = ot }
+    public var hours = 0.0, reg = 0.0, ot = 0.0, hol = 0.0
+    public init(hours: Double = 0, reg: Double = 0, ot: Double = 0, hol: Double = 0) {
+        self.hours = hours; self.reg = reg; self.ot = ot; self.hol = hol
+    }
 }
 
+public func dayWages(_ c: DayCalc, _ rate: Double) -> Double { (c.reg + c.ot * OT_MULT + c.hol * HOL_MULT) * rate }
+
 /// OT accrues within a Sat–Fri week on the hours past 40, in date order.
+/// Holiday hours are all paid at HOL_MULT. They count toward the week's 40, so
+/// they can push later days into overtime, but they never stack: a holiday
+/// hour past 40 is still paid at 1.5x, not 2.25x.
 public func computeHours(_ days: [Day]) -> [UUID: DayCalc] {
     var run: [ISODate: Double] = [:]
     var out: [UUID: DayCalc] = [:]
@@ -93,8 +112,12 @@ public func computeHours(_ days: [Day]) -> [UUID: DayCalc] {
         let k = weekStart(d.date)
         let h = dayHours(d)
         let before = run[k] ?? 0, after = before + h
-        let ot = max(0, after - 40) - max(0, before - 40)
-        out[d.id] = DayCalc(hours: h, reg: h - ot, ot: ot)
+        if holidayOn(d.date) != nil {
+            out[d.id] = DayCalc(hours: h, hol: h)
+        } else {
+            let ot = max(0, after - 40) - max(0, before - 40)
+            out[d.id] = DayCalc(hours: h, reg: h - ot, ot: ot)
+        }
         run[k] = after
     }
     return out
@@ -104,40 +127,40 @@ public func daysIn(_ days: [Day], _ p: Period) -> [Day] { days.filter { $0.date 
 
 /// Hours a period actually paid: the stub wins where there is one.
 public func periodHours(_ data: PrepayData, _ p: Period, _ calc: [UUID: DayCalc]) -> Double {
-    if let s = data.stubs.first(where: { $0.periodStart == p.key }) { return s.regHours + s.otHours }
+    if let s = data.stubs.first(where: { $0.periodStart == p.key }) { return s.hours }
     return daysIn(data.days, p).reduce(0) { $0 + (calc[$1.id]?.hours ?? 0) }
 }
 
 // MARK: - totals
 
 public struct Totals: Sendable {
-    public var reg = 0.0, ot = 0.0, hrs = 0.0, tips = 0.0, cash = 0.0
+    public var reg = 0.0, ot = 0.0, hol = 0.0, hrs = 0.0, tips = 0.0, cash = 0.0
     public var perDiem = 0.0, travelDays = 0, miles = 0.0, milePay = 0.0
     public var rate = 0.0, sick = 0.0, sickPay = 0.0, tuition = 0.0
-    public var regPay = 0.0, otPay = 0.0, waBase = 0.0, gross = 0.0
+    public var regPay = 0.0, otPay = 0.0, holPay = 0.0, waBase = 0.0, gross = 0.0
     public var taxLines: [(String, Double)] = []
-    public var tax = 0.0, net = 0.0
+    public var tax = 0.0, rothPct = 0.0, roth = 0.0, match = 0.0, net = 0.0
 }
 
 public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRate: Double,
-                   sick: Double = 0, tuition: Double = 0) -> Totals {
+                   sick: Double = 0, tuition: Double = 0, rothPct: Double = 0) -> Totals {
     var t = Totals()
     for d in list {
         let c = calc[d.id] ?? DayCalc()
-        t.reg += c.reg; t.ot += c.ot; t.hrs += c.hours
+        t.reg += c.reg; t.ot += c.ot; t.hol += c.hol; t.hrs += c.hours
         t.tips += d.ccTips; t.cash += d.cashTips; t.miles += d.miles
         t.perDiem += perDiem(d.travel)
         if d.travel != .none { t.travelDays += 1 }
     }
     t.rate = rate
-    t.regPay = t.reg * rate; t.otPay = t.ot * rate * OT_MULT
+    t.regPay = t.reg * rate; t.otPay = t.ot * rate * OT_MULT; t.holPay = t.hol * rate * HOL_MULT
     t.sick = sick; t.sickPay = sick * rate
     t.milePay = t.miles * mileRate
     t.tuition = tuition
     // Tips are taxed federally but sit outside the Washington premiums;
     // per-diem comes through as a bonus and is taxed like wages; tuition and
     // mileage are reimbursements, outside all of it.
-    t.waBase = t.regPay + t.otPay + t.sickPay + t.perDiem
+    t.waBase = t.regPay + t.otPay + t.holPay + t.sickPay + t.perDiem
     t.gross = t.waBase + t.tips
     t.taxLines = [
         ("Federal income tax", federalTax(t.gross)),
@@ -149,20 +172,24 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
         ("WA Workers Comp", TAX.wc * t.hrs),
     ]
     t.tax = t.taxLines.reduce(0) { $0 + $1.1 }
-    t.net = t.gross - t.tax + t.tuition + t.milePay
+    t.rothPct = rothPct
+    t.roth = t.gross * rothPct / 100
+    t.match = t.gross * min(rothPct, ROTH_MATCH_MAX) / 100
+    t.net = t.gross - t.tax - t.roth + t.tuition + t.milePay
     return t
 }
 
-public struct StubTotals: Sendable { public var regPay, otPay, sickPay, gross, hours, net: Double }
+public struct StubTotals: Sendable { public var regPay, otPay, holPay, sickPay, gross, hours, net: Double }
 
 public func stubTotals(_ s: Stub, rate: Double) -> StubTotals {
     // Payroll rounds each earnings line to cents before summing, and prints
     // overtime as two lines: OT straight (1x) and OT premium (0.5x).
     let regPay = cents(s.regHours * rate)
     let otPay = cents(s.otHours * rate) + cents(s.otHours * rate * (OT_MULT - 1))
+    let holPay = cents(s.holHours * rate * HOL_MULT)
     let sickPay = cents(s.sickHours * rate)
-    let gross = cents(regPay + otPay + sickPay + s.ccTips + s.bonus)
-    return StubTotals(regPay: regPay, otPay: otPay, sickPay: sickPay, gross: gross, hours: s.regHours + s.otHours,
+    let gross = cents(regPay + otPay + holPay + sickPay + s.ccTips + s.bonus)
+    return StubTotals(regPay: regPay, otPay: otPay, holPay: holPay, sickPay: sickPay, gross: gross, hours: s.hours,
                       net: cents(gross - s.tax + s.reimbursement))
 }
 
@@ -261,6 +288,7 @@ public func estimate(_ data: PrepayData, _ p: Period, _ today: ISODate, _ calc: 
     let ev = data.tuition.first { $0.periodStart == p.key }
     let owed = tuitionOwed(data, p, calc)
     let tuition = !expected ? 0 : ev?.status == .received ? ev!.amount : owed.amount
-    let t = totals(list, calc, rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick: sick, tuition: tuition)
+    let t = totals(list, calc, rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick: sick, tuition: tuition,
+                   rothPct: rothPctFor(data.settings, p))
     return Estimate(period: p, list: list, totals: t, tuitionExpected: expected, tuitionOwed: owed, accrual: accrualFor(t.hrs))
 }

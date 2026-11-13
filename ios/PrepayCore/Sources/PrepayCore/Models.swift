@@ -58,6 +58,7 @@ public struct Stub: Codable, Hashable, Sendable {
     public var payDate: ISODate
     public var regHours: Double
     public var otHours: Double
+    public var holHours: Double // worked on a holiday, at time and a half
     public var ccTips: Double
     public var bonus: Double // the per-diem, which payroll prints as "spot bonus"
     public var sickHours: Double // cashed out on this check, at straight time
@@ -68,18 +69,38 @@ public struct Stub: Codable, Hashable, Sendable {
 
     enum CodingKeys: String, CodingKey {
         case periodStart = "period_start", periodEnd = "period_end", payDate = "pay_date"
-        case regHours = "reg_hours", otHours = "ot_hours", ccTips = "cc_tips", bonus, reimbursement, tax
+        case regHours = "reg_hours", otHours = "ot_hours", holHours = "hol_hours", ccTips = "cc_tips", bonus, reimbursement, tax
         case sickHours = "sick_hours"
         case taxIsEstimate = "tax_is_estimate", cashTips = "cash_tips"
     }
 
     public init(periodStart: ISODate, periodEnd: ISODate, payDate: ISODate, regHours: Double, otHours: Double,
-                ccTips: Double, bonus: Double, sickHours: Double = 0, reimbursement: Double, tax: Double,
+                holHours: Double = 0, ccTips: Double, bonus: Double, sickHours: Double = 0, reimbursement: Double, tax: Double,
                 taxIsEstimate: Bool, cashTips: Double) {
         self.periodStart = periodStart; self.periodEnd = periodEnd; self.payDate = payDate
-        self.regHours = regHours; self.otHours = otHours; self.ccTips = ccTips; self.bonus = bonus; self.sickHours = sickHours
+        self.regHours = regHours; self.otHours = otHours; self.holHours = holHours; self.ccTips = ccTips; self.bonus = bonus; self.sickHours = sickHours
         self.reimbursement = reimbursement; self.tax = tax; self.taxIsEstimate = taxIsEstimate; self.cashTips = cashTips
     }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        periodStart = try c.decode(String.self, forKey: .periodStart)
+        periodEnd = try c.decode(String.self, forKey: .periodEnd)
+        payDate = try c.decode(String.self, forKey: .payDate)
+        regHours = try c.decode(Double.self, forKey: .regHours)
+        otHours = try c.decode(Double.self, forKey: .otHours)
+        holHours = try c.decodeIfPresent(Double.self, forKey: .holHours) ?? 0
+        ccTips = try c.decode(Double.self, forKey: .ccTips)
+        bonus = try c.decode(Double.self, forKey: .bonus)
+        sickHours = try c.decodeIfPresent(Double.self, forKey: .sickHours) ?? 0
+        reimbursement = try c.decode(Double.self, forKey: .reimbursement)
+        tax = try c.decode(Double.self, forKey: .tax)
+        taxIsEstimate = try c.decode(Bool.self, forKey: .taxIsEstimate)
+        cashTips = try c.decode(Double.self, forKey: .cashTips)
+    }
+
+    /// Hours this check paid for, at any rate.
+    public var hours: Double { regHours + otHours + holHours }
 }
 
 public struct Rate: Codable, Hashable, Sendable {
@@ -115,10 +136,13 @@ public struct Settings: Codable, Hashable, Sendable {
     public var tuitionRate: Double
     public var sickBalance: Double
     public var sickAsOf: ISODate
+    public var rothPct: Double // Roth 401(k), percent of gross; 0 = off
+    public var rothFrom: ISODate? // first period it comes out of
 
     enum CodingKeys: String, CodingKey {
         case defaultStartMin = "default_start_min", defaultLunch = "default_lunch", mileRate = "mile_rate"
         case tuitionOn = "tuition_on", tuitionRate = "tuition_rate", sickBalance = "sick_balance", sickAsOf = "sick_as_of"
+        case rothPct = "roth_pct", rothFrom = "roth_from"
     }
 
     public static func defaults(today: ISODate = todayIso()) -> Settings {
@@ -127,9 +151,23 @@ public struct Settings: Codable, Hashable, Sendable {
     }
 
     public init(defaultStartMin: Int, defaultLunch: Bool, mileRate: Double, tuitionOn: Bool, tuitionRate: Double,
-                sickBalance: Double, sickAsOf: ISODate) {
+                sickBalance: Double, sickAsOf: ISODate, rothPct: Double = 0, rothFrom: ISODate? = nil) {
         self.defaultStartMin = defaultStartMin; self.defaultLunch = defaultLunch; self.mileRate = mileRate
         self.tuitionOn = tuitionOn; self.tuitionRate = tuitionRate; self.sickBalance = sickBalance; self.sickAsOf = sickAsOf
+        self.rothPct = rothPct; self.rothFrom = rothFrom
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        defaultStartMin = try c.decode(Int.self, forKey: .defaultStartMin)
+        defaultLunch = try c.decode(Bool.self, forKey: .defaultLunch)
+        mileRate = try c.decode(Double.self, forKey: .mileRate)
+        tuitionOn = try c.decode(Bool.self, forKey: .tuitionOn)
+        tuitionRate = try c.decode(Double.self, forKey: .tuitionRate)
+        sickBalance = try c.decode(Double.self, forKey: .sickBalance)
+        sickAsOf = try c.decode(String.self, forKey: .sickAsOf)
+        rothPct = try c.decodeIfPresent(Double.self, forKey: .rothPct) ?? 0
+        rothFrom = try c.decodeIfPresent(String.self, forKey: .rothFrom)
     }
 }
 

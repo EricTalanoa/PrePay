@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { type Period, fmtMD, fmtRange, periodOf, prevPeriod, todayIso } from '../lib/dates';
 import {
-  type Data, type Day, type Stub, OT_MULT, computeHours, daysIn, estimate, money, num, rateFor, stubTotals,
+  type Data, type Day, type Stub, HOL_MULT, OT_MULT, computeHours, daysIn, estimate, money, num, rateFor, stubHours, stubTotals,
   tuitionExpected, tuitionOwed,
 } from '../lib/pay';
 import type { Actions } from '../store';
@@ -72,10 +72,10 @@ function StubBody({ s, data, actions, onEdit }: { s: Stub; data: Data; actions: 
   const checks: { name: string; logged: string; paid: string; delta: string }[] = [];
   if (list.length) {
     const L = estimate(data, p, todayIso(), calc).totals;
-    const dT = L.tips - s.ccTips, dH = L.hrs - (s.regHours + s.otHours), dP = L.perDiem - s.bonus;
+    const dT = L.tips - s.ccTips, dH = L.hrs - stubHours(s), dP = L.perDiem - s.bonus;
     const word = (x: number) => (x > 0 ? 'SHORT ' : 'OVER ');
     if (Math.abs(dT) > 0.005) checks.push({ name: 'CC tips', logged: money(L.tips), paid: money(s.ccTips), delta: word(dT) + money(Math.abs(dT)) });
-    if (Math.abs(dH) > 0.05) checks.push({ name: 'Hours', logged: L.hrs.toFixed(2) + 'h', paid: (s.regHours + s.otHours).toFixed(2) + 'h', delta: word(dH) + Math.abs(dH).toFixed(2) + 'h' });
+    if (Math.abs(dH) > 0.05) checks.push({ name: 'Hours', logged: L.hrs.toFixed(2) + 'h', paid: stubHours(s).toFixed(2) + 'h', delta: word(dH) + Math.abs(dH).toFixed(2) + 'h' });
     if (Math.abs(dP) > 0.005) checks.push({ name: 'Per-diem', logged: money(L.perDiem), paid: money(s.bonus), delta: word(dP) + money(Math.abs(dP)) });
   }
 
@@ -83,15 +83,17 @@ function StubBody({ s, data, actions, onEdit }: { s: Stub; data: Data; actions: 
     <div style={{ paddingBottom: 22 }}>
       {field('regHours', 'Regular hours', `@ $${rate.toFixed(2)}`)}
       {field('otHours', 'Overtime hours', `@ $${(rate * OT_MULT).toFixed(2)}`)}
+      {field('holHours', 'Holiday hours', `worked on a holiday @ $${(rate * HOL_MULT).toFixed(2)}`)}
       {field('ccTips', 'CC tips', 'taxed as wages', '$')}
       {field('bonus', 'Per-diem', 'printed as spot bonus · taxed', '$')}
       {field('sickHours', 'Sick hours paid', `cashed out @ $${rate.toFixed(2)}`)}
       {field('reimbursement', 'Reimbursement', 'tuition + mileage · after tax', '$')}
-      {field('tax', 'Taxes & deductions', 'as printed on the stub', '$')}
+      {field('tax', 'Taxes & deductions', 'Roth included · as printed on the stub', '$')}
       {field('cashTips', 'Cash tips', 'off the check', '$')}
       <div className="panel" style={{ marginTop: 14 }}>
         <PanelLine name={`Regular ${s.regHours.toFixed(2)}h`} amt={money(P.regPay)} />
         {s.otHours > 0 && <PanelLine name={`Overtime ${s.otHours.toFixed(2)}h`} amt={money(P.otPay)} />}
+        {s.holHours > 0 && <PanelLine name={`Holiday ${s.holHours.toFixed(2)}h`} amt={money(P.holPay)} />}
         {s.ccTips > 0 && <PanelLine name="CC tips" amt={money(s.ccTips)} />}
         {s.bonus > 0 && <PanelLine name="Per-diem" amt={money(s.bonus)} />}
         {s.sickHours > 0 && <PanelLine name={`Sick pay ${s.sickHours.toFixed(2)}h`} amt={money(P.sickPay)} />}
@@ -129,11 +131,13 @@ function EstimateBody({ p, data, actions, onEdit }: { p: Period; data: Data; act
       <div className="panel">
         {T.reg > 0 && <PanelLine name={`Regular ${T.reg.toFixed(2)}h`} amt={money(T.regPay)} />}
         {T.ot > 0 && <PanelLine name={`Overtime ${T.ot.toFixed(2)}h`} amt={money(T.otPay)} />}
+        {T.hol > 0 && <PanelLine name={`Holiday ${T.hol.toFixed(2)}h`} amt={money(T.holPay)} />}
         {T.tips > 0 && <PanelLine name="CC tips" amt={money(T.tips)} />}
         {T.perDiem > 0 && <PanelLine name="Per-diem" amt={money(T.perDiem)} />}
         {T.sickPay > 0 && <PanelLine name={`Sick cash-out ${T.sick.toFixed(2)}h`} amt={money(T.sickPay)} />}
         <PanelLine tone="strong" name="Gross" amt={money(T.gross)} extra={T.cash > 0 ? `+ ${money(T.cash)} cash` : undefined} />
         <PanelLine tone="dim" name="Est. taxes" amt={'−' + money(T.tax)} />
+        {T.roth > 0 && <PanelLine tone="dim" name={`Roth 401(k) ${T.rothPct}%`} amt={'−' + money(T.roth)} />}
         {T.tuition > 0 && <PanelLine name="Tuition reimb." amt={money(T.tuition)} />}
         {T.milePay > 0 && <PanelLine name={`POV mileage ${T.miles} mi`} amt={money(T.milePay)} />}
         <PanelLine tone="strong" name="Net" amt={money(T.net)} />
@@ -167,8 +171,8 @@ export function History({ data, pay, actions, onEdit }: { data: Data; pay: Perio
     const T = E.totals;
     actions.saveStub({
       periodStart: prev.key, periodEnd: prev.to, payDate: prev.payDate,
-      regHours: +T.reg.toFixed(2), otHours: +T.ot.toFixed(2), ccTips: +T.tips.toFixed(2), bonus: T.perDiem, sickHours: T.sick,
-      reimbursement: +(T.tuition + T.milePay).toFixed(2), tax: +T.tax.toFixed(2), taxIsEstimate: true, cashTips: +T.cash.toFixed(2),
+      regHours: +T.reg.toFixed(2), otHours: +T.ot.toFixed(2), holHours: +T.hol.toFixed(2), ccTips: +T.tips.toFixed(2), bonus: T.perDiem, sickHours: T.sick,
+      reimbursement: +(T.tuition + T.milePay).toFixed(2), tax: +(T.tax + T.roth).toFixed(2), taxIsEstimate: true, cashTips: +T.cash.toFixed(2),
     });
     setOpen(prev.key);
   };
@@ -196,7 +200,7 @@ export function History({ data, pay, actions, onEdit }: { data: Data; pay: Perio
             const isOpen = open === e.key;
             const net = e.stub ? stubTotals(e.stub, rateFor(data.rates, e.key)).net : estimate(data, e.period, today, calc).totals.net;
             const cash = e.stub ? e.stub.cashTips : daysIn(data.days, e.period).reduce((a, d) => a + num(d.cashTips), 0);
-            const sub = e.stub ? `${(e.stub.regHours + e.stub.otHours).toFixed(2)} h` : `${daysIn(data.days, e.period).length} days`;
+            const sub = e.stub ? `${stubHours(e.stub).toFixed(2)} h` : `${daysIn(data.days, e.period).length} days`;
             return (
               <div key={e.key} style={{ borderBottom: '1px solid var(--rule-2)', margin: '0 24px' }}>
                 <button className="row" style={{ width: '100%', padding: '18px 0', alignItems: 'baseline', textAlign: 'left' }}

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { periodOf, upcomingPeriod } from './dates';
+import { holidayOn } from './holidays';
 import {
   type Data, type Day, DEFAULT_SETTINGS, computeHours, currentRate, estimate, pendingRaise, rateFor,
   federalTax, sickLedger, stubTotals, tuitionExpected, tuitionOwed, tuitionQuestions,
@@ -59,13 +60,97 @@ describe('federal withholding', () => {
 describe('stubs', () => {
   it('rounds OT as straight + premium lines and includes sick pay in gross', () => {
     const s = { periodStart: '2026-08-01', periodEnd: '2026-08-15', payDate: '2026-08-20', regHours: 10, otHours: 1.01,
-      sickHours: 2, ccTips: 5, bonus: 51, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0 };
+      holHours: 0, sickHours: 2, ccTips: 5, bonus: 51, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0 };
     const P = stubTotals(s, 13.5);
     // 1.01 * 13.5 = 13.635 -> 13.64, premium 6.8175 -> 6.82; one line would give 20.45
     expect(P.otPay).toBe(20.46);
     expect(P.sickPay).toBe(27);
     expect(P.gross).toBe(135 + 20.46 + 27 + 5 + 51);
     expect(P.net).toBe(P.gross - 20 + 7);
+  });
+});
+
+describe('holidays', () => {
+  it('knows the six holidays and moves weekend ones to the nearest weekday', () => {
+    expect(holidayOn('2026-01-01')).toBe("New Year's Day");
+    expect(holidayOn('2026-05-25')).toBe('Memorial Day');
+    expect(holidayOn('2026-09-07')).toBe('Labor Day');
+    expect(holidayOn('2026-11-26')).toBe('Thanksgiving');
+    expect(holidayOn('2026-12-25')).toBe('Christmas');
+    // Sat Jul 4 2026 is observed Fri Jul 3
+    expect(holidayOn('2026-07-03')).toBe('Independence Day');
+    expect(holidayOn('2026-07-04')).toBeNull();
+    // Sun Dec 25 2022 is observed Mon Dec 26
+    expect(holidayOn('2022-12-26')).toBe('Christmas');
+    expect(holidayOn('2022-12-25')).toBeNull();
+    // Sat Jan 1 2028 is observed Fri Dec 31 2027
+    expect(holidayOn('2027-12-31')).toBe("New Year's Day");
+    expect(holidayOn('2026-11-11')).toBe('Veterans Day');
+    // Sat Nov 11 2028 is observed Fri Nov 10
+    expect(holidayOn('2028-11-10')).toBe('Veterans Day');
+    expect(holidayOn('2026-11-27')).toBeNull();
+  });
+
+  const sum = (c: ReturnType<typeof computeHours>, k: 'reg' | 'ot' | 'hol') => Object.values(c).reduce((a, x) => a + x[k], 0);
+  const total = (date: string, h: number) => day(date, { mode: 'total', totalHours: h });
+
+  it('pays holiday hours at 1.5x, counting them toward 40 without stacking', () => {
+    // Sat Nov 21 .. Fri Nov 27 2026. 36h Mon-Wed, 8h on Thanksgiving, 8h Friday.
+    const days = [total('2026-11-23', 12), total('2026-11-24', 12), total('2026-11-25', 12),
+      total('2026-11-26', 8), total('2026-11-27', 8)];
+    const c = computeHours(days);
+    expect(sum(c, 'reg')).toBeCloseTo(36);
+    // the 4 holiday hours past 40 stay holiday, not 2.25x
+    expect(sum(c, 'hol')).toBeCloseTo(8);
+    expect(sum(c, 'ot')).toBeCloseTo(8);
+  });
+  it('lets a holiday early in the week push later days into overtime', () => {
+    // Labor Day Mon Sep 7 2026, then 9h Tue-Fri: 44h, 4 of them OT on Friday
+    const days = [total('2026-09-07', 8), ...['08', '09', '10', '11'].map(d => total(`2026-09-${d}`, 9))];
+    const c = computeHours(days);
+    expect(sum(c, 'hol')).toBeCloseTo(8);
+    expect(sum(c, 'ot')).toBeCloseTo(4);
+    expect(sum(c, 'reg')).toBeCloseTo(32);
+  });
+  it('puts holiday pay in the estimate and taxes it like wages', () => {
+    const d = data({ days: [total('2026-11-26', 8), total('2026-11-25', 8)] });
+    const T = estimate(d, periodOf('2026-11-26'), '2026-11-27').totals;
+    expect(T.hol).toBeCloseTo(8);
+    expect(T.holPay).toBeCloseTo(8 * 20 * 1.5);
+    expect(T.waBase).toBeCloseTo(8 * 20 + 240);
+    expect(T.hrs).toBeCloseTo(16);
+  });
+  it('adds holiday hours from a stub to its gross and hours', () => {
+    const s = { periodStart: '2026-11-16', periodEnd: '2026-11-30', payDate: '2026-12-04', regHours: 60, otHours: 0,
+      holHours: 8, sickHours: 0, ccTips: 0, bonus: 0, reimbursement: 0, tax: 0, taxIsEstimate: false, cashTips: 0 };
+    const P = stubTotals(s, 13.5);
+    expect(P.holPay).toBe(162);
+    expect(P.gross).toBe(810 + 162);
+    expect(P.hours).toBe(68);
+  });
+});
+
+describe('roth 401(k)', () => {
+  it('comes out of gross after tax, from its first period on', () => {
+    const settings = { ...DEFAULT_SETTINGS, sickAsOf: '2026-01-01', tuitionOn: false, rothPct: 6, rothFrom: '2026-11-01' };
+    const days = [day('2026-10-28', { ccTips: 50 }), day('2026-11-03', { ccTips: 50 })];
+    const d = data({ days, settings });
+    const before = estimate(d, periodOf('2026-10-28'), '2026-11-13').totals;
+    expect(before.roth).toBe(0);
+    const T = estimate(d, periodOf('2026-11-03'), '2026-11-13').totals;
+    const off = estimate(data({ days, settings: { ...settings, rothPct: 0 } }), periodOf('2026-11-03'), '2026-11-13').totals;
+    expect(T.gross).toBeCloseTo(8 * 20 + 50);
+    expect(T.roth).toBeCloseTo(0.06 * T.gross);
+    expect(T.match).toBeCloseTo(T.roth);
+    // after tax: withholding is the same, take-home drops by the full amount
+    expect(T.tax).toBeCloseTo(off.tax);
+    expect(T.net).toBeCloseTo(off.net - T.roth);
+  });
+  it('matches only up to 6%', () => {
+    const settings = { ...DEFAULT_SETTINGS, sickAsOf: '2026-01-01', rothPct: 10, rothFrom: '2026-11-01' };
+    const T = estimate(data({ days: [day('2026-11-03')], settings }), periodOf('2026-11-03'), '2026-11-13').totals;
+    expect(T.roth).toBeCloseTo(16);
+    expect(T.match).toBeCloseTo(9.6);
   });
 });
 

@@ -24,12 +24,12 @@ const fromDay = (d: Day) => ({
 
 const toStub = (r: Row): Stub => ({
   periodStart: r.period_start as string, periodEnd: r.period_end as string, payDate: r.pay_date as string,
-  regHours: num(r.reg_hours), otHours: num(r.ot_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus), sickHours: num(r.sick_hours),
+  regHours: num(r.reg_hours), otHours: num(r.ot_hours), holHours: num(r.hol_hours), ccTips: num(r.cc_tips), bonus: num(r.bonus), sickHours: num(r.sick_hours),
   reimbursement: num(r.reimbursement), tax: num(r.tax), taxIsEstimate: !!r.tax_is_estimate, cashTips: num(r.cash_tips),
 });
 const fromStub = (s: Stub) => ({
   period_start: s.periodStart, period_end: s.periodEnd, pay_date: s.payDate,
-  reg_hours: s.regHours, ot_hours: s.otHours, cc_tips: s.ccTips, bonus: s.bonus, sick_hours: s.sickHours,
+  reg_hours: s.regHours, ot_hours: s.otHours, hol_hours: s.holHours, cc_tips: s.ccTips, bonus: s.bonus, sick_hours: s.sickHours,
   reimbursement: s.reimbursement, tax: s.tax, tax_is_estimate: s.taxIsEstimate, cash_tips: s.cashTips,
 });
 
@@ -37,10 +37,12 @@ const toSettings = (r: Row | null): Settings => r ? {
   defaultStartMin: num(r.default_start_min), defaultLunch: !!r.default_lunch, mileRate: num(r.mile_rate),
   tuitionOn: !!r.tuition_on, tuitionRate: num(r.tuition_rate),
   sickBalance: num(r.sick_balance), sickAsOf: r.sick_as_of as string,
+  rothPct: num(r.roth_pct), rothFrom: (r.roth_from as string | null) ?? null,
 } : { ...DEFAULT_SETTINGS, sickAsOf: todayIso() };
 const fromSettings = (s: Settings) => ({
   default_start_min: s.defaultStartMin, default_lunch: s.defaultLunch, mile_rate: s.mileRate,
   tuition_on: s.tuitionOn, tuition_rate: s.tuitionRate, sick_balance: s.sickBalance, sick_as_of: s.sickAsOf,
+  roth_pct: s.rothPct, roth_from: s.rothFrom,
   updated_at: new Date().toISOString(),
 });
 

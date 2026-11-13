@@ -92,6 +92,29 @@ struct SettingsView: View {
                     Text("Usually every other check. If an expected one doesn't come, it moves to the next check — Pay day asks after each one.")
                 }
 
+                Section {
+                    StubField(title: "Percent of gross", note: "after tax · match up to \(String(format: "%g", ROTH_MATCH_MAX))%",
+                              icon: "chart.line.uptrend.xyaxis", value: s.rothPct) { v in
+                        model.updateSettings { $0.rothPct = max(0, v); if $0.rothFrom == nil { $0.rothFrom = pay.key } }
+                    }
+                    if s.rothPct > 0 {
+                        Picker("Starts", selection: Binding(
+                            get: { (s.rothFrom ?? pay.key) > pay.key },
+                            set: { next in model.updateSettings { $0.rothFrom = next ? nextPeriod(pay).key : pay.key } }
+                        )) {
+                            Text("\(fmtMD(pay.payDate)) check").tag(false)
+                            Text("\(fmtMD(nextPeriod(pay).payDate))").tag(true)
+                        }
+                        .pickerStyle(.segmented)
+                    }
+                } header: { Text("Roth 401(k)") } footer: {
+                    if s.rothPct > 0 {
+                        Text(e.totals.roth > 0
+                             ? "\(money(e.totals.roth)) off the \(fmtMD(pay.payDate)) check · \(money(e.totals.match)) company match"
+                             : "Not on this check yet")
+                    }
+                }
+
                 Section("POV mileage") {
                     StubField(title: "Per mile", note: "reimbursed, not taxed", icon: "car", value: s.mileRate) { v in
                         model.updateSettings { $0.mileRate = v }

@@ -14,7 +14,8 @@ struct WorkDayView: View {
         let rate = rateFor(model.data.rates, d.date)
         let hours = dayHours(d)
         let mileRate = model.data.settings.mileRate
-        let subtotal = hours * rate + d.ccTips + perDiem(d.travel) + d.miles * mileRate
+        // Before overtime: that depends on the rest of the week.
+        let subtotal = hours * rate * (holidayOn(d.date) != nil ? HOL_MULT : 1) + d.ccTips + perDiem(d.travel) + d.miles * mileRate
         let touched = model.editing || (fresh != nil && d != fresh)
 
         NavigationStack {
@@ -141,6 +142,7 @@ struct WorkDayView: View {
             .animation(.snappy, value: subtotal)
             .lineLimit(1).minimumScaleFactor(0.6)
         Text("before tax · \(fmtFull(date))").font(.footnote).foregroundStyle(Theme.onHero.opacity(0.65))
+        if let hol = holidayOn(date) { Caps("\(hol) · time and a half", color: Theme.heroAccent) }
     }
 
     @ViewBuilder

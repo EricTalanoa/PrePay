@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { fmtTime, nowMinutes, todayIso } from '../lib/dates';
-import { type Data, type Day, type Travel, PER_DIEM, dayHours, money, num, rateFor } from '../lib/pay';
+import { holidayOn } from '../lib/holidays';
+import { type Data, type Day, type Travel, HOL_MULT, PER_DIEM, dayHours, money, num, rateFor } from '../lib/pay';
 import { NumField, Seg, Toggle } from '../ui';
 
 const ITEM = 44;
@@ -71,7 +72,9 @@ export function WorkDay({ data, draft, setDraft, editing, onSave, onDelete }: {
   const rate = rateFor(data.rates, d.date);
   const hours = dayHours(d);
   const mileRate = data.settings.mileRate;
-  const subtotal = hours * rate + num(d.ccTips) + PER_DIEM[d.travel] + num(d.miles) * mileRate;
+  // Before overtime: that depends on the rest of the week.
+  const holiday = holidayOn(d.date);
+  const subtotal = hours * rate * (holiday ? HOL_MULT : 1) + num(d.ccTips) + PER_DIEM[d.travel] + num(d.miles) * mileRate;
   const travelOpts: { value: Travel; label: string; sub?: string }[] = [
     { value: 'none', label: 'Local' },
     { value: 'partial', label: 'Travel day', sub: money(PER_DIEM.partial) },
@@ -84,6 +87,12 @@ export function WorkDay({ data, draft, setDraft, editing, onSave, onDelete }: {
         <h1>Work day</h1>
         <input type="date" aria-label="Date" value={d.date} onChange={e => e.target.value && setDraft({ date: e.target.value })} />
       </div>
+
+      {holiday && (
+        <div className="pad" style={{ paddingTop: 14 }}>
+          <div className="label accent">{holiday} · time and a half</div>
+        </div>
+      )}
 
       <div className="tabs">
         <button className={d.mode === 'range' ? 'on' : ''} onClick={() => setDraft({ mode: 'range' })}>Start / End</button>

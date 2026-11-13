@@ -25,7 +25,7 @@ function legacyDay(x: Legacy): Day {
 function legacyStub(x: Legacy): Stub {
   return {
     periodStart: x.from as string, periodEnd: x.to as string, payDate: x.pay as string,
-    regHours: num(x.regH), otHours: num(x.otH), ccTips: num(x.tips), bonus: num(x.bonus), sickHours: 0,
+    regHours: num(x.regH), otHours: num(x.otH), holHours: 0, ccTips: num(x.tips), bonus: num(x.bonus), sickHours: 0,
     reimbursement: num(x.reimb), tax: num(x.tax), taxIsEstimate: !!x.taxEst, cashTips: num(x.cash),
   };
 }
@@ -85,7 +85,7 @@ export function parseBackup(text: string): Incoming | null {
     // a copied old log carries hasSettings: false; a full export has settings
     hasSettings: o.hasSettings !== false,
     days: o.days.map(d => ({ ...d, id: d.id || uuid() })),
-    stubs: (o.stubs ?? []).map(s => ({ ...s, sickHours: num(s.sickHours) })), rates: o.rates ?? [], cashouts: o.cashouts ?? [], tuition: o.tuition ?? [],
+    stubs: (o.stubs ?? []).map(s => ({ ...s, holHours: num(s.holHours), sickHours: num(s.sickHours) })), rates: o.rates ?? [], cashouts: o.cashouts ?? [], tuition: o.tuition ?? [],
     settings: { ...DEFAULT_SETTINGS, ...o.settings, sickAsOf: o.settings.sickAsOf || todayIso() },
   };
 }
