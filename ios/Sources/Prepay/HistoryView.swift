@@ -80,7 +80,7 @@ struct HistoryView: View {
         let t = estimate(model.data, p, todayIso()).totals
         model.saveStub(Stub(periodStart: p.key, periodEnd: p.to, payDate: p.payDate,
                             regHours: cents(t.reg), otHours: cents(t.ot), holHours: cents(t.hol), ccTips: cents(t.tips), bonus: t.perDiem, sickHours: t.sick,
-                            reimbursement: cents(t.tuition + t.milePay), tax: cents(t.tax), taxIsEstimate: true, cashTips: cents(t.cash)))
+                            reimbursement: cents(t.tuition + t.milePay), tax: cents(t.tax + t.roth), taxIsEstimate: true, cashTips: cents(t.cash)))
     }
 }
 
@@ -107,7 +107,7 @@ struct PeriodDetailView: View {
                     StubField(title: "Per-diem", note: "printed as spot bonus", value: s.bonus) { var x = s; x.bonus = $0; model.saveStub(x) }
                     StubField(title: "Sick hours paid", note: "cashed out @ $\(f2(rate))", value: s.sickHours) { var x = s; x.sickHours = $0; model.saveStub(x) }
                     StubField(title: "Reimbursement", note: "tuition + mileage", value: s.reimbursement) { var x = s; x.reimbursement = $0; model.saveStub(x) }
-                    StubField(title: "Taxes & deductions", note: s.taxIsEstimate ? "still the estimate — type it off the stub" : "as printed",
+                    StubField(title: "Taxes & deductions", note: s.taxIsEstimate ? "still the estimate — type it off the stub" : "Roth included · as printed",
                               value: s.tax) { var x = s; x.tax = $0; x.taxIsEstimate = false; model.saveStub(x) }
                     StubField(title: "Cash tips", note: "off the check", value: s.cashTips) { var x = s; x.cashTips = $0; model.saveStub(x) }
                 }
@@ -140,6 +140,7 @@ struct PeriodDetailView: View {
                     if t.perDiem > 0 { LineRow(name: "Per-diem", amount: money(t.perDiem)) }
                     LineRow(name: "Gross", amount: money(t.gross), bold: true)
                     LineRow(name: "Est. taxes", amount: "−" + money(t.tax), dim: true)
+                    if t.roth > 0 { LineRow(name: "Roth 401(k) \(String(format: "%g", t.rothPct))%", amount: "−" + money(t.roth), dim: true) }
                     if t.tuition > 0 { LineRow(name: "Tuition reimb.", amount: money(t.tuition)) }
                     if t.milePay > 0 { LineRow(name: "POV mileage", amount: money(t.milePay)) }
                     HStack(alignment: .firstTextBaseline) {

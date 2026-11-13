@@ -85,7 +85,9 @@ describe('holidays', () => {
     expect(holidayOn('2022-12-25')).toBeNull();
     // Sat Jan 1 2028 is observed Fri Dec 31 2027
     expect(holidayOn('2027-12-31')).toBe("New Year's Day");
-    expect(holidayOn('2026-11-11')).toBeNull();
+    expect(holidayOn('2026-11-11')).toBe('Veterans Day');
+    // Sat Nov 11 2028 is observed Fri Nov 10
+    expect(holidayOn('2028-11-10')).toBe('Veterans Day');
     expect(holidayOn('2026-11-27')).toBeNull();
   });
 
@@ -125,6 +127,30 @@ describe('holidays', () => {
     expect(P.holPay).toBe(162);
     expect(P.gross).toBe(810 + 162);
     expect(P.hours).toBe(68);
+  });
+});
+
+describe('roth 401(k)', () => {
+  it('comes out of gross after tax, from its first period on', () => {
+    const settings = { ...DEFAULT_SETTINGS, sickAsOf: '2026-01-01', tuitionOn: false, rothPct: 6, rothFrom: '2026-11-01' };
+    const days = [day('2026-10-28', { ccTips: 50 }), day('2026-11-03', { ccTips: 50 })];
+    const d = data({ days, settings });
+    const before = estimate(d, periodOf('2026-10-28'), '2026-11-13').totals;
+    expect(before.roth).toBe(0);
+    const T = estimate(d, periodOf('2026-11-03'), '2026-11-13').totals;
+    const off = estimate(data({ days, settings: { ...settings, rothPct: 0 } }), periodOf('2026-11-03'), '2026-11-13').totals;
+    expect(T.gross).toBeCloseTo(8 * 20 + 50);
+    expect(T.roth).toBeCloseTo(0.06 * T.gross);
+    expect(T.match).toBeCloseTo(T.roth);
+    // after tax: withholding is the same, take-home drops by the full amount
+    expect(T.tax).toBeCloseTo(off.tax);
+    expect(T.net).toBeCloseTo(off.net - T.roth);
+  });
+  it('matches only up to 6%', () => {
+    const settings = { ...DEFAULT_SETTINGS, sickAsOf: '2026-01-01', rothPct: 10, rothFrom: '2026-11-01' };
+    const T = estimate(data({ days: [day('2026-11-03')], settings }), periodOf('2026-11-03'), '2026-11-13').totals;
+    expect(T.roth).toBeCloseTo(16);
+    expect(T.match).toBeCloseTo(9.6);
   });
 });
 

@@ -73,6 +73,7 @@ export function PayDay({ data, pay, actions, onEdit }: { data: Data; pay: Period
         {T.sick > 0 && <Line name="Sick cash-out" detail={`${T.sick.toFixed(2)}h @ ${T.rate.toFixed(2)}`} amt={money(T.sickPay)} />}
         <Line className="total" name="Gross" amt={money(T.gross)} />
         <Line className="dim" name="Est. taxes & deductions" amt={'−' + money(T.tax)} />
+        {T.roth > 0 && <Line className="dim" name="Roth 401(k)" detail={`${T.rothPct}% · after tax`} amt={'−' + money(T.roth)} />}
         {T.milePay > 0 && <Line name="POV mileage" detail={`${T.miles} mi`} amt={money(T.milePay)} />}
         {T.tuition > 0 && <Line name="Tuition reimb." detail={`${E.tuitionOwed.hours.toFixed(2)}h · expected`} amt={money(T.tuition)} />}
       </div>
@@ -87,6 +88,11 @@ export function PayDay({ data, pay, actions, onEdit }: { data: Data; pay: Period
         </div>
       )}
 
+      {T.match > 0 && (
+        <div className="label pad" style={{ marginTop: 16 }}>
+          Into your 401(k): {money(T.roth)} yours + {money(T.match)} company match = {money(T.roth + T.match)}
+        </div>
+      )}
       <div className="label pad" style={{ marginTop: 16 }}>
         Accruing {E.accrual.toFixed(2)} sick h this period
         {data.settings.tuitionOn && !E.tuitionExpected && ' · tuition not expected on this check'}

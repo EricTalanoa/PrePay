@@ -88,7 +88,7 @@ function StubBody({ s, data, actions, onEdit }: { s: Stub; data: Data; actions: 
       {field('bonus', 'Per-diem', 'printed as spot bonus · taxed', '$')}
       {field('sickHours', 'Sick hours paid', `cashed out @ $${rate.toFixed(2)}`)}
       {field('reimbursement', 'Reimbursement', 'tuition + mileage · after tax', '$')}
-      {field('tax', 'Taxes & deductions', 'as printed on the stub', '$')}
+      {field('tax', 'Taxes & deductions', 'Roth included · as printed on the stub', '$')}
       {field('cashTips', 'Cash tips', 'off the check', '$')}
       <div className="panel" style={{ marginTop: 14 }}>
         <PanelLine name={`Regular ${s.regHours.toFixed(2)}h`} amt={money(P.regPay)} />
@@ -137,6 +137,7 @@ function EstimateBody({ p, data, actions, onEdit }: { p: Period; data: Data; act
         {T.sickPay > 0 && <PanelLine name={`Sick cash-out ${T.sick.toFixed(2)}h`} amt={money(T.sickPay)} />}
         <PanelLine tone="strong" name="Gross" amt={money(T.gross)} extra={T.cash > 0 ? `+ ${money(T.cash)} cash` : undefined} />
         <PanelLine tone="dim" name="Est. taxes" amt={'−' + money(T.tax)} />
+        {T.roth > 0 && <PanelLine tone="dim" name={`Roth 401(k) ${T.rothPct}%`} amt={'−' + money(T.roth)} />}
         {T.tuition > 0 && <PanelLine name="Tuition reimb." amt={money(T.tuition)} />}
         {T.milePay > 0 && <PanelLine name={`POV mileage ${T.miles} mi`} amt={money(T.milePay)} />}
         <PanelLine tone="strong" name="Net" amt={money(T.net)} />
@@ -171,7 +172,7 @@ export function History({ data, pay, actions, onEdit }: { data: Data; pay: Perio
     actions.saveStub({
       periodStart: prev.key, periodEnd: prev.to, payDate: prev.payDate,
       regHours: +T.reg.toFixed(2), otHours: +T.ot.toFixed(2), holHours: +T.hol.toFixed(2), ccTips: +T.tips.toFixed(2), bonus: T.perDiem, sickHours: T.sick,
-      reimbursement: +(T.tuition + T.milePay).toFixed(2), tax: +T.tax.toFixed(2), taxIsEstimate: true, cashTips: +T.cash.toFixed(2),
+      reimbursement: +(T.tuition + T.milePay).toFixed(2), tax: +(T.tax + T.roth).toFixed(2), taxIsEstimate: true, cashTips: +T.cash.toFixed(2),
     });
     setOpen(prev.key);
   };

@@ -136,10 +136,13 @@ public struct Settings: Codable, Hashable, Sendable {
     public var tuitionRate: Double
     public var sickBalance: Double
     public var sickAsOf: ISODate
+    public var rothPct: Double // Roth 401(k), percent of gross; 0 = off
+    public var rothFrom: ISODate? // first period it comes out of
 
     enum CodingKeys: String, CodingKey {
         case defaultStartMin = "default_start_min", defaultLunch = "default_lunch", mileRate = "mile_rate"
         case tuitionOn = "tuition_on", tuitionRate = "tuition_rate", sickBalance = "sick_balance", sickAsOf = "sick_as_of"
+        case rothPct = "roth_pct", rothFrom = "roth_from"
     }
 
     public static func defaults(today: ISODate = todayIso()) -> Settings {
@@ -148,9 +151,23 @@ public struct Settings: Codable, Hashable, Sendable {
     }
 
     public init(defaultStartMin: Int, defaultLunch: Bool, mileRate: Double, tuitionOn: Bool, tuitionRate: Double,
-                sickBalance: Double, sickAsOf: ISODate) {
+                sickBalance: Double, sickAsOf: ISODate, rothPct: Double = 0, rothFrom: ISODate? = nil) {
         self.defaultStartMin = defaultStartMin; self.defaultLunch = defaultLunch; self.mileRate = mileRate
         self.tuitionOn = tuitionOn; self.tuitionRate = tuitionRate; self.sickBalance = sickBalance; self.sickAsOf = sickAsOf
+        self.rothPct = rothPct; self.rothFrom = rothFrom
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        defaultStartMin = try c.decode(Int.self, forKey: .defaultStartMin)
+        defaultLunch = try c.decode(Bool.self, forKey: .defaultLunch)
+        mileRate = try c.decode(Double.self, forKey: .mileRate)
+        tuitionOn = try c.decode(Bool.self, forKey: .tuitionOn)
+        tuitionRate = try c.decode(Double.self, forKey: .tuitionRate)
+        sickBalance = try c.decode(Double.self, forKey: .sickBalance)
+        sickAsOf = try c.decode(String.self, forKey: .sickAsOf)
+        rothPct = try c.decodeIfPresent(Double.self, forKey: .rothPct) ?? 0
+        rothFrom = try c.decodeIfPresent(String.self, forKey: .rothFrom)
     }
 }
 

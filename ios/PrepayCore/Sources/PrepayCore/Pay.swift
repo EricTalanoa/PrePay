@@ -58,6 +58,16 @@ public func dayHours(_ d: Day) -> Double {
     return max(0, Double(m) / 60)
 }
 
+/// Roth 401(k): a percent of the whole gross (tips and per-diem too), taken
+/// after tax, so it lowers the take-home but not the withholding. The company
+/// matches up to ROTH_MATCH_MAX percent; the match goes to the account.
+public let ROTH_MATCH_MAX = 6.0
+
+public func rothPctFor(_ s: Settings, _ p: Period) -> Double {
+    guard s.rothPct > 0, let from = s.rothFrom, p.key >= from else { return 0 }
+    return s.rothPct
+}
+
 // MARK: - rates
 
 private func byFrom(_ rates: [Rate]) -> [Rate] { rates.sorted { $0.effectiveFrom < $1.effectiveFrom } }
@@ -129,11 +139,11 @@ public struct Totals: Sendable {
     public var rate = 0.0, sick = 0.0, sickPay = 0.0, tuition = 0.0
     public var regPay = 0.0, otPay = 0.0, holPay = 0.0, waBase = 0.0, gross = 0.0
     public var taxLines: [(String, Double)] = []
-    public var tax = 0.0, net = 0.0
+    public var tax = 0.0, rothPct = 0.0, roth = 0.0, match = 0.0, net = 0.0
 }
 
 public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRate: Double,
-                   sick: Double = 0, tuition: Double = 0) -> Totals {
+                   sick: Double = 0, tuition: Double = 0, rothPct: Double = 0) -> Totals {
     var t = Totals()
     for d in list {
         let c = calc[d.id] ?? DayCalc()
@@ -162,7 +172,10 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
         ("WA Workers Comp", TAX.wc * t.hrs),
     ]
     t.tax = t.taxLines.reduce(0) { $0 + $1.1 }
-    t.net = t.gross - t.tax + t.tuition + t.milePay
+    t.rothPct = rothPct
+    t.roth = t.gross * rothPct / 100
+    t.match = t.gross * min(rothPct, ROTH_MATCH_MAX) / 100
+    t.net = t.gross - t.tax - t.roth + t.tuition + t.milePay
     return t
 }
 
@@ -275,6 +288,7 @@ public func estimate(_ data: PrepayData, _ p: Period, _ today: ISODate, _ calc: 
     let ev = data.tuition.first { $0.periodStart == p.key }
     let owed = tuitionOwed(data, p, calc)
     let tuition = !expected ? 0 : ev?.status == .received ? ev!.amount : owed.amount
-    let t = totals(list, calc, rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick: sick, tuition: tuition)
+    let t = totals(list, calc, rate: rateFor(data.rates, p.from), mileRate: data.settings.mileRate, sick: sick, tuition: tuition,
+                   rothPct: rothPctFor(data.settings, p))
     return Estimate(period: p, list: list, totals: t, tuitionExpected: expected, tuitionOwed: owed, accrual: accrualFor(t.hrs))
 }

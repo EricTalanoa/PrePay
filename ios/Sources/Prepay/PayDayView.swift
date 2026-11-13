@@ -68,6 +68,7 @@ struct PayDayView: View {
                         Divider().padding(.vertical, 4)
                         LineRow(name: "Gross", amount: money(t.gross), bold: true)
                         LineRow(name: "Est. taxes & deductions", amount: "−" + money(t.tax), dim: true)
+                        if t.roth > 0 { LineRow(name: "Roth 401(k)", detail: "\(String(format: "%g", t.rothPct))% · after tax", amount: "−" + money(t.roth), dim: true) }
                         if t.milePay > 0 { LineRow(name: "POV mileage", detail: "\(String(format: "%g", t.miles)) mi", amount: money(t.milePay)) }
                         if t.tuition > 0 { LineRow(name: "Tuition reimb.", detail: "expected", amount: money(t.tuition)) }
                         Divider().padding(.vertical, 4)
@@ -98,6 +99,13 @@ struct PayDayView: View {
                             Text(money(t.cash)).font(Theme.mono(17, weight: .semibold))
                         }
                         .card(stroke: Theme.good.opacity(0.35))
+                    }
+
+                    if t.match > 0 {
+                        Label("Into your 401(k): \(money(t.roth)) yours + \(money(t.match)) match = \(money(t.roth + t.match))",
+                              systemImage: "chart.line.uptrend.xyaxis")
+                            .font(.footnote).foregroundStyle(Theme.muted)
+                            .padding(.horizontal, 4)
                     }
 
                     Label {

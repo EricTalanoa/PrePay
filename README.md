@@ -69,6 +69,7 @@ counting past 40 hours in a Saturday–Friday week, plus `holiday hours x rate x
 | Per-diem | yes | yes | paid as the "spot bonus" on the stub |
 | Sick-hour cash-out | yes | yes | straight time, no Workers Comp; entered on a stub as sick hours paid |
 | Tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
+| Roth 401(k) | taken out after tax | | 6% of gross by default; see below |
 
 Deduction rates, read off the stubs:
 
@@ -92,6 +93,7 @@ are in [`src/lib/holidays.ts`](src/lib/holidays.ts):
 - Memorial Day (last Monday in May)
 - Independence Day (Jul 4)
 - Labor Day (first Monday in September)
+- Veterans Day (Nov 11)
 - Thanksgiving (fourth Thursday in November)
 - Christmas (Dec 25)
 
@@ -104,6 +106,15 @@ push later shifts into overtime. They don't stack, though: a holiday hour past
 40 is still paid 1.5x, not 2.25x. Work day shows the holiday and its 1.5x pay
 when you pick one. On History, a stub has its own **Holiday hours** field for
 that line of the real stub.
+
+### Roth 401(k)
+
+Settings → Roth 401(k) takes a percent of the **whole gross** (wages, tips and
+per-diem) off each check, from the check you pick onward. It's a Roth, so it
+comes out after tax: withholding stays the same and the take-home drops by the
+full amount. The company matches up to 6% (`ROTH_MATCH_MAX`); Pay day shows
+the match, but it goes into the account, not onto the check. On a stub the
+Roth is part of **Taxes & deductions**.
 
 ### Per-diem
 

@@ -31,8 +31,27 @@ final class PayTests: XCTestCase {
         XCTAssertEqual(holidayOn("2022-12-26"), "Christmas") // Sun Dec 25 -> Mon
         XCTAssertNil(holidayOn("2022-12-25"))
         XCTAssertEqual(holidayOn("2027-12-31"), "New Year's Day") // Sat Jan 1 2028 -> Fri
-        XCTAssertNil(holidayOn("2026-11-11"))
+        XCTAssertEqual(holidayOn("2026-11-11"), "Veterans Day")
+        XCTAssertEqual(holidayOn("2028-11-10"), "Veterans Day") // Sat Nov 11 -> Fri
         XCTAssertNil(holidayOn("2026-11-27"))
+    }
+
+    func testRoth() {
+        var s = Settings.defaults(today: "2026-01-01")
+        s.tuitionOn = false; s.rothPct = 6; s.rothFrom = "2026-11-01"
+        let days = [day("2026-10-28") { $0.ccTips = 50 }, day("2026-11-03") { $0.ccTips = 50 }]
+        XCTAssertEqual(estimate(data(days: days, settings: s), periodOf("2026-10-28"), "2026-11-13").totals.roth, 0)
+        let t = estimate(data(days: days, settings: s), periodOf("2026-11-03"), "2026-11-13").totals
+        var off = s; off.rothPct = 0
+        let o = estimate(data(days: days, settings: off), periodOf("2026-11-03"), "2026-11-13").totals
+        XCTAssertEqual(t.roth, 0.06 * t.gross, accuracy: 1e-9)
+        XCTAssertEqual(t.match, t.roth, accuracy: 1e-9)
+        XCTAssertEqual(t.tax, o.tax, accuracy: 1e-9)
+        XCTAssertEqual(t.net, o.net - t.roth, accuracy: 1e-9)
+        s.rothPct = 10
+        let ten = estimate(data(days: [day("2026-11-03")], settings: s), periodOf("2026-11-03"), "2026-11-13").totals
+        XCTAssertEqual(ten.roth, 16, accuracy: 1e-9)
+        XCTAssertEqual(ten.match, 9.6, accuracy: 1e-9)
     }
 
     func testHolidayHoursDontStack() {

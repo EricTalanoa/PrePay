@@ -26,6 +26,7 @@ public let HOLIDAYS: [(name: String, on: @Sendable (Int) -> Date)] = [
     ("Memorial Day", { lastWeekday($0, 5, 2) }),
     ("Independence Day", { ymd($0, 7, 4) }),
     ("Labor Day", { nthWeekday($0, 9, 2, 1) }),
+    ("Veterans Day", { ymd($0, 11, 11) }),
     ("Thanksgiving", { nthWeekday($0, 11, 5, 4) }),
     ("Christmas", { ymd($0, 12, 25) }),
 ]

@@ -12,6 +12,7 @@ export const HOLIDAYS: { name: string; on: (y: number) => Date }[] = [
   { name: 'Memorial Day', on: y => lastWeekday(y, 4, 1) },
   { name: 'Independence Day', on: y => new Date(y, 6, 4) },
   { name: 'Labor Day', on: y => nthWeekday(y, 8, 1, 1) },
+  { name: 'Veterans Day', on: y => new Date(y, 10, 11) },
   { name: 'Thanksgiving', on: y => nthWeekday(y, 10, 4, 4) },
   { name: 'Christmas', on: y => new Date(y, 11, 25) },
 ];

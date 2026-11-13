@@ -1,8 +1,8 @@
 import { useState } from 'react';
-import { type Period, fmtMD, fmtTime, nextPeriod, pad, todayIso } from '../lib/dates';
+import { type Period, fmtMD, fmtTime, nextPeriod, pad, periodOf, todayIso } from '../lib/dates';
 import { latestDay, parseBackup, readLegacyStorage, toBackup } from '../lib/backup';
 import {
-  type Data, OT_MULT, currentRate, estimate, money, pendingRaise, sickLedger, tuitionExpected, tuitionOwed,
+  type Data, OT_MULT, ROTH_MATCH_MAX, currentRate, estimate, money, pendingRaise, sickLedger, tuitionExpected, tuitionOwed,
 } from '../lib/pay';
 import type { Actions } from '../store';
 import { NumField, Seg, Toggle } from '../ui';
@@ -163,6 +163,33 @@ export function Settings({ data, pay, actions, email, onSignOut }: {
             </div>
             <div className="muted small">
               Usually every other check. If an expected one doesn't come, it moves to the next check — Pay day asks you after each one.
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="section">
+        <div className="label">Roth 401(k)</div>
+        <div className="row">
+          <div className="stack">
+            <div style={{ fontSize: 15 }}>Percent of gross</div>
+            <div className="label">After tax · company matches up to {ROTH_MATCH_MAX}%</div>
+          </div>
+          <NumField label="Roth 401(k) percent" className="num sm" value={s.rothPct} placeholder="0"
+            onCommit={v => actions.setSettings({ rothPct: Math.max(0, v ?? 0), rothFrom: s.rothFrom ?? pay.key })} />
+        </div>
+        {s.rothPct > 0 && (
+          <>
+            <Seg mono value={s.rothFrom && s.rothFrom > pay.key ? 'next' : 'this'}
+              onChange={v => actions.setSettings({ rothFrom: v === 'this' ? pay.key : nextPeriod(pay).key })} options={[
+                { value: 'this', label: `FROM THE ${fmtMD(pay.payDate).toUpperCase()} CHECK` },
+                { value: 'next', label: `FROM ${fmtMD(nextPeriod(pay).payDate).toUpperCase()}` },
+              ]} />
+            <div className="label">
+              {s.rothFrom && s.rothFrom < pay.key ? `Coming out since the ${fmtMD(periodOf(s.rothFrom).payDate)} check · ` : ''}
+              {E.totals.roth > 0
+                ? `${money(E.totals.roth)} off the ${fmtMD(pay.payDate)} check · ${money(E.totals.match)} match`
+                : 'Not on this check yet'}
             </div>
           </>
         )}

@@ -37,10 +37,12 @@ const toSettings = (r: Row | null): Settings => r ? {
   defaultStartMin: num(r.default_start_min), defaultLunch: !!r.default_lunch, mileRate: num(r.mile_rate),
   tuitionOn: !!r.tuition_on, tuitionRate: num(r.tuition_rate),
   sickBalance: num(r.sick_balance), sickAsOf: r.sick_as_of as string,
+  rothPct: num(r.roth_pct), rothFrom: (r.roth_from as string | null) ?? null,
 } : { ...DEFAULT_SETTINGS, sickAsOf: todayIso() };
 const fromSettings = (s: Settings) => ({
   default_start_min: s.defaultStartMin, default_lunch: s.defaultLunch, mile_rate: s.mileRate,
   tuition_on: s.tuitionOn, tuition_rate: s.tuitionRate, sick_balance: s.sickBalance, sick_as_of: s.sickAsOf,
+  roth_pct: s.rothPct, roth_from: s.rothFrom,
   updated_at: new Date().toISOString(),
 });
 
