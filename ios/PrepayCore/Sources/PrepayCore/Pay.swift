@@ -153,14 +153,18 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
         if d.travel != .none { t.travelDays += 1 }
     }
     t.rate = rate
-    t.regPay = t.reg * rate; t.otPay = t.ot * rate * OT_MULT; t.holPay = t.hol * rate * HOL_MULT
-    t.sick = sick; t.sickPay = sick * rate
     t.milePay = t.miles * mileRate
+    // Payroll works the overtime premium off the "regular rate": base pay plus
+    // the misc pay (mileage) spread over every hour worked. The spot bonus is
+    // left out of it. Holiday hours print as overtime, so they get it too.
+    let prem = premiumRate(rate, misc: t.milePay, hours: t.hrs)
+    t.regPay = t.reg * rate; t.otPay = t.ot * (rate + prem); t.holPay = t.hol * (rate + prem)
+    t.sick = sick; t.sickPay = sick * rate
     t.tuition = tuition
     // Tips are taxed federally but sit outside the Washington premiums;
-    // per-diem comes through as a bonus and is taxed like wages; tuition and
-    // mileage are reimbursements, outside all of it.
-    t.waBase = t.regPay + t.otPay + t.holPay + t.sickPay + t.perDiem
+    // per-diem (the spot bonus) and mileage (misc pay) are taxed like wages;
+    // tuition is a reimbursement, outside all of it.
+    t.waBase = t.regPay + t.otPay + t.holPay + t.sickPay + t.perDiem + t.milePay
     t.gross = t.waBase + t.tips
     t.taxLines = [
         ("Federal income tax", federalTax(t.gross)),
@@ -175,21 +179,28 @@ public func totals(_ list: [Day], _ calc: [UUID: DayCalc], rate: Double, mileRat
     t.rothPct = rothPct
     t.roth = t.gross * rothPct / 100
     t.match = t.gross * min(rothPct, ROTH_MATCH_MAX) / 100
-    t.net = t.gross - t.tax - t.roth + t.tuition + t.milePay
+    t.net = t.gross - t.tax - t.roth + t.tuition
     return t
 }
 
-public struct StubTotals: Sendable { public var regPay, otPay, holPay, sickPay, gross, hours, net: Double }
+/// Half the regular rate: base pay plus misc pay spread over the hours.
+public func premiumRate(_ rate: Double, misc: Double, hours: Double) -> Double {
+    (rate + (hours > 0 ? misc / hours : 0)) * (OT_MULT - 1)
+}
+
+public struct StubTotals: Sendable { public var regPay, otPay, holPay, sickPay, miscPay, gross, hours, net: Double }
 
 public func stubTotals(_ s: Stub, rate: Double) -> StubTotals {
     // Payroll rounds each earnings line to cents before summing, and prints
-    // overtime as two lines: OT straight (1x) and OT premium (0.5x).
+    // overtime as two lines: OT straight (1x) and OT premium (0.5x the regular
+    // rate, which counts the misc pay).
+    let prem = premiumRate(rate, misc: s.miscPay, hours: s.hours)
     let regPay = cents(s.regHours * rate)
-    let otPay = cents(s.otHours * rate) + cents(s.otHours * rate * (OT_MULT - 1))
-    let holPay = cents(s.holHours * rate * HOL_MULT)
+    let otPay = cents(s.otHours * rate) + cents(s.otHours * prem)
+    let holPay = cents(s.holHours * (rate + prem))
     let sickPay = cents(s.sickHours * rate)
-    let gross = cents(regPay + otPay + holPay + sickPay + s.ccTips + s.bonus)
-    return StubTotals(regPay: regPay, otPay: otPay, holPay: holPay, sickPay: sickPay, gross: gross, hours: s.hours,
+    let gross = cents(regPay + otPay + holPay + sickPay + s.ccTips + s.bonus + s.miscPay)
+    return StubTotals(regPay: regPay, otPay: otPay, holPay: holPay, sickPay: sickPay, miscPay: s.miscPay, gross: gross, hours: s.hours,
                       net: cents(gross - s.tax + s.reimbursement))
 }
 

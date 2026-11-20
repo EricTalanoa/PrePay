@@ -58,14 +58,6 @@ struct MainTabs: View {
             HistoryView().tabItem { Label("History", systemImage: "list.bullet.rectangle.fill") }.tag(AppModel.Tab.history)
             SettingsView().tabItem { Label("Settings", systemImage: "gearshape.fill") }.tag(AppModel.Tab.settings)
         }
-        .toolbar {
-            ToolbarItemGroup(placement: .keyboard) {
-                Spacer()
-                Button("Done") {
-                    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
-                }
-            }
-        }
         .alert("Couldn't save", isPresented: Binding(get: { model.error != nil }, set: { if !$0 { model.error = nil } })) {
             Button("OK") { model.error = nil }
         } message: {

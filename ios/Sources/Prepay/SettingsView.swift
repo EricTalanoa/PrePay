@@ -167,6 +167,7 @@ struct SettingsView: View {
                 }
             }
             .paperBackground()
+            .keyboardDismissable()
             .navigationTitle("Settings")
         }
     }

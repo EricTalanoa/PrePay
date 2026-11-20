@@ -62,7 +62,8 @@ public struct Stub: Codable, Hashable, Sendable {
     public var ccTips: Double
     public var bonus: Double // the per-diem, which payroll prints as "spot bonus"
     public var sickHours: Double // cashed out on this check, at straight time
-    public var reimbursement: Double
+    public var miscPay: Double // POV mileage, which payroll prints as "misc pay" and taxes
+    public var reimbursement: Double // tuition, after tax
     public var tax: Double
     public var taxIsEstimate: Bool
     public var cashTips: Double
@@ -70,15 +71,15 @@ public struct Stub: Codable, Hashable, Sendable {
     enum CodingKeys: String, CodingKey {
         case periodStart = "period_start", periodEnd = "period_end", payDate = "pay_date"
         case regHours = "reg_hours", otHours = "ot_hours", holHours = "hol_hours", ccTips = "cc_tips", bonus, reimbursement, tax
-        case sickHours = "sick_hours"
+        case sickHours = "sick_hours", miscPay = "misc_pay"
         case taxIsEstimate = "tax_is_estimate", cashTips = "cash_tips"
     }
 
     public init(periodStart: ISODate, periodEnd: ISODate, payDate: ISODate, regHours: Double, otHours: Double,
-                holHours: Double = 0, ccTips: Double, bonus: Double, sickHours: Double = 0, reimbursement: Double, tax: Double,
+                holHours: Double = 0, ccTips: Double, bonus: Double, sickHours: Double = 0, miscPay: Double = 0, reimbursement: Double, tax: Double,
                 taxIsEstimate: Bool, cashTips: Double) {
         self.periodStart = periodStart; self.periodEnd = periodEnd; self.payDate = payDate
-        self.regHours = regHours; self.otHours = otHours; self.holHours = holHours; self.ccTips = ccTips; self.bonus = bonus; self.sickHours = sickHours
+        self.regHours = regHours; self.otHours = otHours; self.holHours = holHours; self.ccTips = ccTips; self.bonus = bonus; self.sickHours = sickHours; self.miscPay = miscPay
         self.reimbursement = reimbursement; self.tax = tax; self.taxIsEstimate = taxIsEstimate; self.cashTips = cashTips
     }
 
@@ -93,6 +94,7 @@ public struct Stub: Codable, Hashable, Sendable {
         ccTips = try c.decode(Double.self, forKey: .ccTips)
         bonus = try c.decode(Double.self, forKey: .bonus)
         sickHours = try c.decodeIfPresent(Double.self, forKey: .sickHours) ?? 0
+        miscPay = try c.decodeIfPresent(Double.self, forKey: .miscPay) ?? 0
         reimbursement = try c.decode(Double.self, forKey: .reimbursement)
         tax = try c.decode(Double.self, forKey: .tax)
         taxIsEstimate = try c.decode(Bool.self, forKey: .taxIsEstimate)

@@ -118,6 +118,7 @@ struct WorkDayView: View {
             }
             .sensoryFeedback(.success, trigger: saved)
             .paperBackground()
+            .keyboardDismissable()
             .navigationTitle(model.editing ? "Edit day" : "Work day")
         }
         .onChange(of: model.tab) { _, tab in

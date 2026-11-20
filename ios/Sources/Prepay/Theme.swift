@@ -263,6 +263,32 @@ func minutesBinding(_ get: @escaping () -> Int, _ set: @escaping (Int) -> Void) 
     )
 }
 
+/// The decimal pad has no return key, so a screen with number boxes needs
+/// another way to put the keyboard away: a Done button above it, or a drag
+/// down on the screen. The Done button has to sit
+/// inside the screen's NavigationStack; on the TabView around the stacks,
+/// iOS never shows it, and the keyboard got stuck.
+struct KeyboardDismiss: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .scrollDismissesKeyboard(.interactively)
+            .toolbar {
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("Done") { hideKeyboard() }.fontWeight(.semibold)
+                }
+            }
+    }
+}
+
+@MainActor func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+
+extension View {
+    func keyboardDismissable() -> some View { modifier(KeyboardDismiss()) }
+}
+
 /// A number box that updates its value on every keystroke. The decimal pad
 /// has no return key, so waiting for "submit" would lose what was typed.
 struct DecimalField: View {
