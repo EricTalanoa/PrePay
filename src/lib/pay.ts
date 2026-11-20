@@ -29,7 +29,8 @@ export interface Stub {
   ccTips: number;
   bonus: number; // the per-diem, which payroll prints as "spot bonus"
   sickHours: number; // cashed out on this check, at straight time
-  reimbursement: number;
+  miscPay: number; // POV mileage, which payroll prints as "misc pay" and taxes
+  reimbursement: number; // tuition, after tax
   tax: number;
   taxIsEstimate: boolean;
   cashTips: number;
@@ -230,14 +231,18 @@ export function totals(
     if (d.travel !== 'none') travelDays++;
   }
   const rate = o.rate;
-  const regPay = reg * rate, otPay = ot * rate * OT_MULT, holPay = hol * rate * HOL_MULT;
-  const sick = num(o.sick), sickPay = sick * rate;
   const milePay = miles * num(o.mileRate);
+  // Payroll works the overtime premium off the "regular rate": base pay plus
+  // the misc pay (mileage) spread over every hour worked. The spot bonus is
+  // left out of it. Holiday hours print as overtime, so they get it too.
+  const prem = premiumRate(rate, milePay, hrs);
+  const regPay = reg * rate, otPay = ot * (rate + prem), holPay = hol * (rate + prem);
+  const sick = num(o.sick), sickPay = sick * rate;
   const tuition = num(o.tuition);
   // Tips are taxed federally but sit outside the three Washington premiums;
-  // per-diem comes through as a bonus and is taxed like wages; tuition and
-  // mileage are reimbursements, outside all of it.
-  const waBase = regPay + otPay + holPay + sickPay + perDiem;
+  // per-diem (the spot bonus) and mileage (misc pay) are taxed like wages;
+  // tuition is a reimbursement, outside all of it.
+  const waBase = regPay + otPay + holPay + sickPay + perDiem + milePay;
   const gross = waBase + tips;
   const taxLines: Record<string, number> = {
     'Federal income tax': federalTax(gross),
@@ -255,21 +260,28 @@ export function totals(
   return {
     reg, ot, hol, hrs, tips, cash, perDiem, travelDays, miles, milePay, rate, sick, sickPay, tuition,
     regPay, otPay, holPay, waBase, gross, taxLines, tax, rothPct, roth, match,
-    net: gross - tax - roth + tuition + milePay,
+    net: gross - tax - roth + tuition,
   };
+}
+
+/** Half the regular rate: base pay plus misc pay spread over the hours. */
+export function premiumRate(rate: number, misc: number, hours: number): number {
+  return (rate + (hours > 0 ? misc / hours : 0)) * (OT_MULT - 1);
 }
 
 export function stubTotals(s: Stub, rate: number) {
   // Payroll rounds each earnings line to cents before summing, and prints
-  // overtime as two lines: OT straight (1x) and OT premium (0.5x).
+  // overtime as two lines: OT straight (1x) and OT premium (0.5x the regular
+  // rate, which counts the misc pay).
+  const hours = stubHours(s), misc = num(s.miscPay);
+  const prem = premiumRate(rate, misc, hours);
   const regPay = cents(num(s.regHours) * rate);
-  const otPay = cents(num(s.otHours) * rate) + cents(num(s.otHours) * rate * (OT_MULT - 1));
-  const holPay = cents(num(s.holHours) * rate * HOL_MULT);
+  const otPay = cents(num(s.otHours) * rate) + cents(num(s.otHours) * prem);
+  const holPay = cents(num(s.holHours) * (rate + prem));
   const sickPay = cents(num(s.sickHours) * rate);
-  const gross = cents(regPay + otPay + holPay + sickPay + num(s.ccTips) + num(s.bonus));
+  const gross = cents(regPay + otPay + holPay + sickPay + num(s.ccTips) + num(s.bonus) + misc);
   return {
-    regPay, otPay, holPay, sickPay, gross,
-    hours: stubHours(s),
+    regPay, otPay, holPay, sickPay, miscPay: misc, gross, hours,
     net: cents(gross - num(s.tax) + num(s.reimbursement)),
   };
 }

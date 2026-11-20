@@ -60,16 +60,16 @@ struct PayDayView: View {
                     VStack(alignment: .leading, spacing: 0) {
                         Caps("Breakdown").padding(.bottom, 6)
                         if t.reg > 0 { LineRow(name: "Regular", detail: "\(f2(t.reg))h @ \(f2(t.rate))", amount: money(t.regPay)) }
-                        if t.ot > 0 { LineRow(name: "Overtime", detail: "\(f2(t.ot))h @ \(f2(t.rate * OT_MULT))", amount: money(t.otPay)) }
-                        if t.hol > 0 { LineRow(name: "Holiday", detail: "\(f2(t.hol))h @ \(f2(t.rate * HOL_MULT))", amount: money(t.holPay)) }
+                        if t.ot > 0 { LineRow(name: "Overtime", detail: "\(f2(t.ot))h @ \(f2(t.otPay / t.ot))", amount: money(t.otPay)) }
+                        if t.hol > 0 { LineRow(name: "Holiday", detail: "\(f2(t.hol))h @ \(f2(t.holPay / t.hol))", amount: money(t.holPay)) }
                         if t.tips > 0 { LineRow(name: "Credit card tips", amount: money(t.tips)) }
                         if t.perDiem > 0 { LineRow(name: "Per-diem", detail: "\(t.travelDays)d · spot bonus", amount: money(t.perDiem)) }
+                        if t.milePay > 0 { LineRow(name: "POV mileage", detail: "\(String(format: "%g", t.miles)) mi · misc pay", amount: money(t.milePay)) }
                         if t.sick > 0 { LineRow(name: "Sick cash-out", detail: "\(f2(t.sick))h", amount: money(t.sickPay)) }
                         Divider().padding(.vertical, 4)
                         LineRow(name: "Gross", amount: money(t.gross), bold: true)
                         LineRow(name: "Est. taxes & deductions", amount: "−" + money(t.tax), dim: true)
                         if t.roth > 0 { LineRow(name: "Roth 401(k)", detail: "\(String(format: "%g", t.rothPct))% · after tax", amount: "−" + money(t.roth), dim: true) }
-                        if t.milePay > 0 { LineRow(name: "POV mileage", detail: "\(String(format: "%g", t.miles)) mi", amount: money(t.milePay)) }
                         if t.tuition > 0 { LineRow(name: "Tuition reimb.", detail: "expected", amount: money(t.tuition)) }
                         Divider().padding(.vertical, 4)
                         LineRow(name: "Net", amount: money(t.net), bold: true)
@@ -161,6 +161,7 @@ struct PayDayView: View {
                 .padding(.vertical, 12)
             }
             .background(Theme.paper)
+            .keyboardDismissable()
             .navigationTitle("Pay day")
             .refreshable { await model.load() }
         }

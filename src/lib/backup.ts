@@ -25,7 +25,7 @@ function legacyDay(x: Legacy): Day {
 function legacyStub(x: Legacy): Stub {
   return {
     periodStart: x.from as string, periodEnd: x.to as string, payDate: x.pay as string,
-    regHours: num(x.regH), otHours: num(x.otH), holHours: 0, ccTips: num(x.tips), bonus: num(x.bonus), sickHours: 0,
+    regHours: num(x.regH), otHours: num(x.otH), holHours: 0, ccTips: num(x.tips), bonus: num(x.bonus), sickHours: 0, miscPay: 0,
     reimbursement: num(x.reimb), tax: num(x.tax), taxIsEstimate: !!x.taxEst, cashTips: num(x.cash),
   };
 }

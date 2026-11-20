@@ -96,7 +96,7 @@ enum SampleData {
             let t = estimate(data, p, today).totals
             data.stubs.append(Stub(periodStart: p.key, periodEnd: p.to, payDate: p.payDate,
                                    regHours: cents(t.reg), otHours: cents(t.ot), ccTips: cents(t.tips), bonus: t.perDiem,
-                                   reimbursement: cents(t.tuition + t.milePay), tax: cents(t.tax), taxIsEstimate: false,
+                                   miscPay: cents(t.milePay), reimbursement: cents(t.tuition), tax: cents(t.tax), taxIsEstimate: false,
                                    cashTips: cents(t.cash)))
             data.tuition.append(TuitionEvent(periodStart: p.key, status: .received, amount: cents(t.tuition)))
             p = prevPeriod(p)

@@ -60,13 +60,35 @@ describe('federal withholding', () => {
 describe('stubs', () => {
   it('rounds OT as straight + premium lines and includes sick pay in gross', () => {
     const s = { periodStart: '2026-08-01', periodEnd: '2026-08-15', payDate: '2026-08-20', regHours: 10, otHours: 1.01,
-      holHours: 0, sickHours: 2, ccTips: 5, bonus: 51, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0 };
+      holHours: 0, sickHours: 2, miscPay: 0, ccTips: 5, bonus: 51, reimbursement: 7, tax: 20, taxIsEstimate: false, cashTips: 0 };
     const P = stubTotals(s, 13.5);
     // 1.01 * 13.5 = 13.635 -> 13.64, premium 6.8175 -> 6.82; one line would give 20.45
     expect(P.otPay).toBe(20.46);
     expect(P.sickPay).toBe(27);
     expect(P.gross).toBe(135 + 20.46 + 27 + 5 + 51);
     expect(P.net).toBe(P.gross - 20 + 7);
+  });
+  it('matches the Nov 20 2026 stub: mileage as misc pay lifts the OT premium', () => {
+    const s = { periodStart: '2026-11-01', periodEnd: '2026-11-15', payDate: '2026-11-20', regHours: 70.9, otHours: 24.27,
+      holHours: 0, sickHours: 0, miscPay: 32.2, ccTips: 477.01, bonus: 204, reimbursement: 0, tax: 997.67, taxIsEstimate: false, cashTips: 0 };
+    const P = stubTotals(s, 27);
+    // OT straight 655.29 + premium 24.27 * 13.6692 = 331.75
+    expect(P.otPay).toBeCloseTo(655.29 + 331.75, 2);
+    expect(P.gross).toBe(3614.55);
+    expect(P.net).toBe(2616.88);
+  });
+});
+
+describe('mileage', () => {
+  it('is taxed as wages, sits in the WA base and counts in the OT premium', () => {
+    const d = data({ days: [day('2026-11-02', { startMin: 0, endMin: 45 * 60, lunch: false, miles: 40 })] });
+    const T = estimate(d, periodOf('2026-11-02'), '2026-11-02').totals;
+    expect(T.milePay).toBe(28);
+    // regular rate 20 + 28 / 45; OT premium is half of it
+    expect(T.otPay).toBeCloseTo(5 * (20 + (20 + 28 / 45) / 2), 6);
+    expect(T.waBase).toBeCloseTo(T.regPay + T.otPay + 28, 6);
+    expect(T.gross).toBeCloseTo(T.waBase, 6);
+    expect(T.net).toBeCloseTo(T.gross - T.tax - T.roth, 6);
   });
 });
 
@@ -122,7 +144,7 @@ describe('holidays', () => {
   });
   it('adds holiday hours from a stub to its gross and hours', () => {
     const s = { periodStart: '2026-11-16', periodEnd: '2026-11-30', payDate: '2026-12-04', regHours: 60, otHours: 0,
-      holHours: 8, sickHours: 0, ccTips: 0, bonus: 0, reimbursement: 0, tax: 0, taxIsEstimate: false, cashTips: 0 };
+      holHours: 8, sickHours: 0, miscPay: 0, ccTips: 0, bonus: 0, reimbursement: 0, tax: 0, taxIsEstimate: false, cashTips: 0 };
     const P = stubTotals(s, 13.5);
     expect(P.holPay).toBe(162);
     expect(P.gross).toBe(810 + 162);

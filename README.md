@@ -58,9 +58,12 @@ is ported line for line to
 [`ios/PrepayCore`](ios/PrepayCore/Sources/PrepayCore/Pay.swift). Change one and
 change the other.
 
-Wages are `regular hours x rate` plus `overtime hours x rate x 1.5`, overtime
-counting past 40 hours in a Saturday–Friday week, plus `holiday hours x rate x
-1.5` for hours worked on a holiday (below).
+Wages are `regular hours x rate` plus overtime and holiday hours at time and a
+half, overtime counting past 40 hours in a Saturday–Friday week. The "half" is
+half of payroll's *regular rate*, not the base rate: base pay plus the misc pay
+(mileage) spread over every hour worked. On the Nov 20, 2026 stub, $32.20 of
+mileage over 95.17 hours made the OT premium $13.6692 an hour instead of
+$13.50. The spot bonus is left out of the regular rate.
 
 | Amount | In gross? | In the WA premiums? | Notes |
 | --- | --- | --- | --- |
@@ -68,7 +71,8 @@ counting past 40 hours in a Saturday–Friday week, plus `holiday hours x rate x
 | Credit-card tips | yes | **no** | taxed federally, outside FLI/Cares/MLI |
 | Per-diem | yes | yes | paid as the "spot bonus" on the stub |
 | Sick-hour cash-out | yes | yes | straight time, no Workers Comp; entered on a stub as sick hours paid |
-| Tuition, POV mileage | **no** | **no** | reimbursements, added after tax |
+| POV mileage | yes | yes | paid as "misc pay" since Nov 2026; entered on a stub as Misc pay |
+| Tuition | **no** | **no** | a reimbursement, added after tax |
 | Roth 401(k) | taken out after tax | | 6% of gross by default; see below |
 
 Deduction rates, read off the stubs:
@@ -78,9 +82,9 @@ Deduction rates, read off the stubs:
 | Federal income tax | 2026 IRS semi-monthly brackets: 10% over $670.83, 12% over $1,187.50, 22% over $2,770.83, 24% over $5,075 | gross |
 | Social Security | 6.2% | gross |
 | Medicare | 1.45% | gross |
-| Washington FLI | 0.5433% | wages + per-diem |
-| Washington Cares | 0.58% | wages + per-diem |
-| Washington MLI | 0.2643% | wages + per-diem |
+| Washington FLI | 0.5433% | wages + per-diem + mileage |
+| Washington Cares | 0.58% | wages + per-diem + mileage |
+| Washington MLI | 0.2643% | wages + per-diem + mileage |
 | WA Workers Comp | $0.3519 / hour | hours actually worked |
 
 ### Holidays
@@ -104,8 +108,9 @@ Saturday, so it was Friday July 3.
 Holiday hours count toward the week's 40, so a holiday early in the week can
 push later shifts into overtime. They don't stack, though: a holiday hour past
 40 is still paid 1.5x, not 2.25x. Work day shows the holiday and its 1.5x pay
-when you pick one. On History, a stub has its own **Holiday hours** field for
-that line of the real stub.
+when you pick one. Payroll has so far printed holiday hours as overtime (Nov 2026,
+Veterans Day), so type them into **Overtime hours**; the stub's own **Holiday
+hours** field is only for a stub that prints them on a separate line.
 
 ### Roth 401(k)
 

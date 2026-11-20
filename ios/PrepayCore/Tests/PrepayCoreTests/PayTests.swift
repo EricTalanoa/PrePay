@@ -129,6 +129,16 @@ final class PayTests: XCTestCase {
         XCTAssertEqual(p.gross, 135 + 20.46 + 27 + 5 + 51, accuracy: 1e-9)
     }
 
+    /// The Nov 20 2026 stub: mileage paid as misc pay lifts the OT premium to 13.6692.
+    func testMiscPayStub() {
+        let s = Stub(periodStart: "2026-11-01", periodEnd: "2026-11-15", payDate: "2026-11-20", regHours: 70.9, otHours: 24.27,
+                     ccTips: 477.01, bonus: 204, miscPay: 32.2, reimbursement: 0, tax: 997.67, taxIsEstimate: false, cashTips: 0)
+        let p = stubTotals(s, rate: 27)
+        XCTAssertEqual(p.otPay, 655.29 + 331.75, accuracy: 1e-9)
+        XCTAssertEqual(p.gross, 3614.55, accuracy: 1e-9)
+        XCTAssertEqual(p.net, 2616.88, accuracy: 1e-9)
+    }
+
     func testRaiseBecomesBase() {
         let rates = [Rate(effectiveFrom: "2000-01-01", rate: 20), Rate(effectiveFrom: "2026-09-01", rate: 22)]
         XCTAssertEqual(currentRate(rates, "2026-08-20")?.rate, 20)
